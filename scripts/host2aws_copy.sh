@@ -57,17 +57,17 @@ done
 
 #Mac to AWS
 #copy over fresh python script
-scp -i "~/.ssh/eric-key.pem" cascaded_unet_inference.py ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/cascaded_unet_inference.py  #from mac to AWS
-scp -i "~/.ssh/eric-key.pem" test_cascaded_unet_inference.py ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/test_cascaded_unet_inference.py  #from mac to AWS
-scp -i "~/.ssh/eric-key.pem" aws2docker.sh ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/aws2docker.sh  #from mac to AWS
-scp -i "~/.ssh/eric-key.pem" copy_results_from_docker_to_host.sh ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/copy_results_from_docker_to_host.sh  #from mac to AWS
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" cascaded_unet_inference.py ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/cascaded_unet_inference.py  #from mac to AWS
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" test_cascaded_unet_inference.py ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/test_cascaded_unet_inference.py  #from mac to AWS
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" aws2docker.sh ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/aws2docker.sh  #from mac to AWS
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" copy_results_from_docker_to_host.sh ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/copy_results_from_docker_to_host.sh  #from mac to AWS
 
 #copy over original and CPU-forced models
-scp -i "~/.ssh/eric-key.pem" ../models/cascadedfcn/step1/step1_deploy.prototxt.orig ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step1_deploy.prototxt.orig
-scp -i "~/.ssh/eric-key.pem" ../models/cascadedfcn/step1/step1_deploy.prototxt ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step1_deploy.prototxt
-scp -i "~/.ssh/eric-key.pem" ../models/cascadedfcn/step2/step2_deploy.prototxt.orig ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step2_deploy.prototxt.orig
-scp -i "~/.ssh/eric-key.pem" ../models/cascadedfcn/step2/step2_deploy.prototxt ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step2_deploy.prototxt
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" ../models/cascadedfcn/step1/step1_deploy.prototxt.orig ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step1_deploy.prototxt.orig
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" ../models/cascadedfcn/step1/step1_deploy.prototxt ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step1_deploy.prototxt
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" ../models/cascadedfcn/step2/step2_deploy.prototxt.orig ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step2_deploy.prototxt.orig
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" ../models/cascadedfcn/step2/step2_deploy.prototxt ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step2_deploy.prototxt
 
 #Also copy weights to save download time
-scp -i "~/.ssh/eric-key.pem" ../models/cascadedfcn/step1/step1_weights.caffemodel ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step1_weights.caffemodel
-scp -i "~/.ssh/eric-key.pem" ../models/cascadedfcn/step2/step2_weights.caffemodel ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step2_weights.caffemodel
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" ../models/cascadedfcn/step1/step1_weights.caffemodel ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step1_weights.caffemodel
+scp -i "C:\Users\eric\.ssh\eric-win-key.pem" ../models/cascadedfcn/step2/step2_weights.caffemodel ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/step2_weights.caffemodel

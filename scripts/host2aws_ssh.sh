@@ -54,5 +54,8 @@ do
     esac
 done
 
-#meat
-ssh -i ~/.ssh/eric-key.pem ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com
+#the meat
+#Mac
+#ssh -i ~/.ssh/eric-key.pem ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com
+#Win
+ssh -i C:\Users\eric\.ssh\eric-win-key.pem ubunut@${AWS_EC2_PREFIX}.compute-1.amazonaws.com
