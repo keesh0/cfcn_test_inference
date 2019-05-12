@@ -62,4 +62,6 @@ done
 docker cp ${docker_cont_id}:Cascaded-FCN/models/cascadedfcn/scripts/results ./results
 
 #copy from AWS to local host
-scp -i "~/.ssh/eric-key.pem" -r ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/results ./results/
+#WIN: "/cygdrive/C/Users/eric/.ssh/eric-win-key.pem"
+#MAC: "~/.ssh/eric-key.pem"
+scp -i "/cygdrive/C/Users/eric/.ssh/eric-win-key.pem" -r ubuntu@${AWS_EC2_PREFIX}.compute-1.amazonaws.com:~/results ./results/

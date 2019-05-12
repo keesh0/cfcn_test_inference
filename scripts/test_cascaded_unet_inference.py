@@ -135,12 +135,11 @@ def histeq_processor(img):
     img=img/255.0
     return img.reshape(original_shape)
 
-
-def step1_preprocess_img_slice(img_slc, results_dir, wc, ww):
+def step1_preprocess_img_slice(img_slc, slice, wc, ww, results_dir):
     """
     Preprocesses the image 3d volumes by performing the following :
     1- Rotate the input volume so the the liver is on the left, spine is at the bottom of the image
-    2- Set pixels with hounsfield value great than 1200, to zero. 888
+    2- Set pixels with hounsfield value great than 1200, to zero.
     3- Clip all hounsfield values to the range [-100, 400]
     4- Normalize values to [0, 1]
     5- Rescale img and label slices to 388x388
@@ -156,23 +155,25 @@ def step1_preprocess_img_slice(img_slc, results_dir, wc, ww):
 
     thresh_lo = -100
     thresh_hi = 400
-    # 888 uncomment and try
-    # if wc != 0 and ww != 0:
-    #     thresh_lo = wc - (ww / 2)
-    #     thresh_hi = wc + (ww / 2)
+    if wc != 0 and ww != 0:
+        thresh_lo = wc - (ww / 2)
+        thresh_hi = wc + (ww / 2)
     print("HU thresh low= " + str(thresh_lo))
     print("HU thresh high= " + str(thresh_hi))
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
     # save HU image to disk
-    imsave.imsave(results_dir + os.path.sep + 'preproc1hu_img_slice.png', img_slc)
+    slice_lbl = "slice" + str(slice)
+    fname = results_dir + os.path.sep + 'preproc1hu_' + slice_lbl + '.png'
+    imsave.imsave(fname, img_slc)
 
     img_slc   = normalize_image(img_slc)
     img_slc   = to_scale(img_slc, (388,388))
     img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
-    if False:
-        img_slc = histeq_processor(img_slc)  #888 should we do this step?
+
+    # keesh -- this was not executed in original notebook and seemd to make results worse!
+    #img_slc = histeq_processor(img_slc)
 
     return img_slc
 
@@ -193,8 +194,8 @@ def perform_inference(input_dir, results_dir, mod_slices):
         imsave.imsave(fname, img[...,slice])
 
         # Prepare a test slice
-        # May have to scale the intensities and flip left to rght (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img[...,slice], results_dir, wc, ww)
+        # May have to scale the intensities and flip left to right (and change assumptions like HU thresholds)
+        img_p = step1_preprocess_img_slice(img[...,slice], slice, wc, ww, results_dir)
 
         fname = results_dir + os.path.sep + 'preproc1_' + slice_lbl + '.png'
         imsave.imsave(fname, img_p)
