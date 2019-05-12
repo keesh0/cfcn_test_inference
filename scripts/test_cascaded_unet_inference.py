@@ -78,6 +78,8 @@ def read_dicom_series(directory, filepattern = "image_*"):
     # loop through all the DICOM files
     first_time = True
     wc = ww = 0
+    b = 0
+    m = 1
     for filenameDCM in lstFilesDCM:
         # read the file
         ds = dicom.read_file(filenameDCM)
@@ -87,11 +89,14 @@ def read_dicom_series(directory, filepattern = "image_*"):
             try:
                 wc = int(ds[0x0028, 0x1050].value)   #0028,1050  Window Center: 40
                 ww = int(ds[0x0028, 0x1051].value)   #0028,1051  Window Width: 400
+                b = float(ds[0x0028, 0x1052].value)  #0028,1052  Rescale Intercept: -1024
+                m = float(ds[0x0028, 0x1053].value)  #0028,1053  Rescale Slope: 1
                 first_time = False
             except:
                 wc = ww = 0  #not needed but clearer
-
-    return ArrayDicom, len(lstFilesDCM), wc, ww
+                b = 0
+                m = 1
+    return ArrayDicom, len(lstFilesDCM), wc, ww, b, m
 
 
 """ Image Stats / Display"""
@@ -115,12 +120,14 @@ def to_scale(img, shape=None):
     else:
         raise TypeError('Error. To scale the image array, its type must be np.uint8 or np.float64. (' + str(img.dtype) + ')')
 
-
 def normalize_image(img):
     """ Normalize image values to [0,1] """
     min_, max_ = float(np.min(img)), float(np.max(img))
     return (img - min_) / (max_ - min_)
 
+def normalize_image_using_rescale_slope_intercept(img, m, b):
+    """ Normalize image values to y = mx + b """
+    return ((m * img) + b)
 
 def histeq_processor(img):
     """Histogram equalization"""
@@ -135,7 +142,7 @@ def histeq_processor(img):
     img=img/255.0
     return img.reshape(original_shape)
 
-def step1_preprocess_img_slice(img_slc, slice, wc, ww, results_dir):
+def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, results_dir):
     """
     Preprocesses the image 3d volumes by performing the following :
     1- Rotate the input volume so the the liver is on the left, spine is at the bottom of the image
@@ -151,6 +158,10 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, results_dir):
         Preprocessed image slice
     """
     img_slc   = img_slc.astype(IMG_DTYPE)
+
+    #apply m and b
+    img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
+
     img_slc[img_slc>1200] = 0
 
     thresh_lo = -100
@@ -160,6 +171,8 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, results_dir):
         thresh_hi = wc + (ww / 2)
     print("HU thresh low= " + str(thresh_lo))
     print("HU thresh high= " + str(thresh_hi))
+    print("m= " + str(m))
+    print("b= " + str(b))
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
@@ -180,7 +193,7 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, results_dir):
 
 def perform_inference(input_dir, results_dir, mod_slices):
     """ Read Test Data """
-    img, num_images, wc, ww = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
+    img, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
 
     # process an image every every x slices
     if os.path.isdir(results_dir) == False:
@@ -194,8 +207,8 @@ def perform_inference(input_dir, results_dir, mod_slices):
         imsave.imsave(fname, img[...,slice])
 
         # Prepare a test slice
-        # May have to scale the intensities and flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img[...,slice], slice, wc, ww, results_dir)
+        # May have to flip left to right (and change assumptions like HU thresholds)
+        img_p = step1_preprocess_img_slice(img[...,slice], slice, wc, ww, b, m, results_dir)
 
         fname = results_dir + os.path.sep + 'preproc1_' + slice_lbl + '.png'
         imsave.imsave(fname, img_p)
