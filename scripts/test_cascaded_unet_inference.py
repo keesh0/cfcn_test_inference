@@ -47,7 +47,8 @@ def main(inpArgs):
 
         plt.set_cmap('gray')
 
-        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), int(inpArgs.slice_skip))
+        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), int(inpArgs.slice_skip),
+                          inpArgs.apply_user_wl, inpArgs.apply_hist_eq)
 
         sys.exit(0)
     except IOError as ioex:
@@ -142,7 +143,7 @@ def histeq_processor(img):
     img=img/255.0
     return img.reshape(original_shape)
 
-def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, results_dir):
+def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir):
     """
     Preprocesses the image 3d volumes by performing the following :
     1- Rotate the input volume so the the liver is on the left, spine is at the bottom of the image
@@ -161,18 +162,19 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, results_dir):
 
     #apply m and b
     img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
+    print("m= " + str(m))
+    print("b= " + str(b))
 
     img_slc[img_slc>1200] = 0
 
     thresh_lo = -100
     thresh_hi = 400
-    if wc != 0 and ww != 0:
-        thresh_lo = wc - (ww / 2)
-        thresh_hi = wc + (ww / 2)
+    if apply_user_wl:
+        if wc != 0 and ww != 0:
+            thresh_lo = wc - (ww / 2)
+            thresh_hi = wc + (ww / 2)
     print("HU thresh low= " + str(thresh_lo))
     print("HU thresh high= " + str(thresh_hi))
-    print("m= " + str(m))
-    print("b= " + str(b))
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
@@ -185,13 +187,13 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, results_dir):
     img_slc   = to_scale(img_slc, (388,388))
     img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
 
-    # keesh -- this was not executed in original notebook and seemd to make results worse!
-    #img_slc = histeq_processor(img_slc)
+    if apply_hist_eq:
+        img_slc = histeq_processor(img_slc)
 
     return img_slc
 
 
-def perform_inference(input_dir, results_dir, mod_slices):
+def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_hist_eq):
     """ Read Test Data """
     img, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
 
@@ -208,7 +210,7 @@ def perform_inference(input_dir, results_dir, mod_slices):
 
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img[...,slice], slice, wc, ww, b, m, results_dir)
+        img_p = step1_preprocess_img_slice(img[...,slice], slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir)
 
         fname = results_dir + os.path.sep + 'preproc1_' + slice_lbl + '.png'
         imsave.imsave(fname, img_p)
@@ -220,7 +222,9 @@ def perform_inference(input_dir, results_dir, mod_slices):
 
         pred = net1.forward()['prob'][0,1] > 0.5
         print("pred1 mask: "+ slice_lbl)
-        print(pred.shape)
+
+        # May wish to convert to byte data type
+        print("pred shape, type:" + pred.shape + "," + type(pred))
 
         fname = results_dir + os.path.sep + 'pred1_mask_' + slice_lbl + '.png'
         # Visualize results
@@ -238,10 +242,11 @@ if __name__ == '__main__':
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     parser.add_argument("-s", dest="slice_skip", help="How many slices to skip via mod test")
-    if len(sys.argv) < 4:
-        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -s 20")
+    parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="Whether to apply user-defined W/L in pre-processing")
+    parser.add_argument("-h", "--apply_hist_eq", dest="apply_hist_eq", help="Whether to apply histogram equalization in pre-processing")
+    if len(sys.argv) < 6:
+        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -s 20 --apply_user_wl True --apply_hist_eq False")
         sys.exit(1)
-
     inpArgs = parser.parse_args()
     main(inpArgs)
 
