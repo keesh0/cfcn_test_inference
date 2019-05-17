@@ -126,6 +126,11 @@ def normalize_image(img):
     min_, max_ = float(np.min(img)), float(np.max(img))
     return (img - min_) / (max_ - min_)
 
+def byte_normalize_image(img):
+    """ Normalize image values to [0,255] """
+    min_, max_ = float(np.min(img)), float(np.max(img))
+    return (255.0 * (img - min_) / (max_ - min_))
+
 def normalize_image_using_rescale_slope_intercept(img, m, b):
     """ Normalize image values to y = mx + b """
     return ((m * img) + b)
@@ -204,13 +209,16 @@ def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_h
     net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
     print("step 1 net constructed")
     for slice in range(0, num_images, mod_slices):
+        img_slice = img[...,slice]
+        (num_rows, num_cols) = img_slice.shape
+
         slice_lbl = "slice" + str(slice)
         fname = results_dir + os.path.sep + 'orig_' + slice_lbl + '.png'
-        imsave.imsave(fname, img[...,slice])
+        imsave.imsave(fname, img_slice)
 
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img[...,slice], slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir)
+        img_p = step1_preprocess_img_slice(img_slice, slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir)
 
         fname = results_dir + os.path.sep + 'preproc1_' + slice_lbl + '.png'
         imsave.imsave(fname, img_p)
@@ -222,9 +230,14 @@ def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_h
 
         pred = net1.forward()['prob'][0,1] > 0.5
         print("pred1 mask: "+ slice_lbl)
-
-        # May wish to convert to byte data type
         print("pred shape, type:" + pred.shape + "," + type(pred))
+
+        #prepare step 1 mask for saving
+        mask1 = (pred > 0.5)
+        mask1 = byte_normalize_image(mask1)
+        #If you change any to_img_scale call, make sure that it uses the same interpolation algorithm
+        mask1 = to_scale(mask1, (num_rows, num_cols))
+        mask1 = mask1.astype(SEG_DTYPE)
 
         fname = results_dir + os.path.sep + 'pred1_mask_' + slice_lbl + '.png'
         # Visualize results
