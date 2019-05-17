@@ -75,6 +75,7 @@ def read_dicom_series(directory, filepattern = "image_*"):
     ConstPixelDims = (int(RefDs.Rows), int(RefDs.Columns), len(lstFilesDCM))
     # The array is sized based on 'ConstPixelDims'
     ArrayDicom = np.zeros(ConstPixelDims, dtype=RefDs.pixel_array.dtype)
+    Arrayds = [None] * len(lstFilesDCM)
 
     # loop through all the DICOM files
     first_time = True
@@ -86,6 +87,7 @@ def read_dicom_series(directory, filepattern = "image_*"):
         ds = dicom.read_file(filenameDCM)
         # store the raw image data
         ArrayDicom[:, :, lstFilesDCM.index(filenameDCM)] = ds.pixel_array
+        Arrayds[lstFilesDCM.index(filenameDCM)] = ds
         if first_time:
             try:
                 wc = int(ds[0x0028, 0x1050].value)   #0028,1050  Window Center: 40
@@ -97,7 +99,7 @@ def read_dicom_series(directory, filepattern = "image_*"):
                 wc = ww = 0  #not needed but clearer
                 b = 0
                 m = 1
-    return ArrayDicom, len(lstFilesDCM), wc, ww, b, m
+    return ArrayDicom, Arrayds, len(lstFilesDCM), wc, ww, b, m
 
 
 """ Image Stats / Display"""
@@ -108,16 +110,17 @@ def stat(array):
 
 
 """ Image Preprocessing """
+# nearest interpolation was the default and seems to preserve the mask image on resizes
 def to_scale(img, shape=None):
     height, width = shape
     if img.dtype == SEG_DTYPE:
         # This function is only available if Python Imaging Library (PIL) is installed.
         # Interpolation to use for re-sizing ('nearest', 'lanczos', 'bilinear', 'bicubic' or 'cubic').
-        return scipy.misc.imresize(img,(height,width),interp="bicubic").astype(SEG_DTYPE)  # was "nearest"
+        return scipy.misc.imresize(img,(height,width),interp="nearest").astype(SEG_DTYPE)
     elif img.dtype == IMG_DTYPE:
         max_ = np.max(img)
         factor = 255.0/max_ if max_ != 0 else 1
-        return (scipy.misc.imresize(img,(height,width),interp="bicubic")/factor).astype(IMG_DTYPE)  # was "nearest"
+        return (scipy.misc.imresize(img,(height,width),interp="nearest")/factor).astype(IMG_DTYPE)
     else:
         raise TypeError('Error. To scale the image array, its type must be np.uint8 or np.float64. (' + str(img.dtype) + ')')
 
@@ -200,7 +203,7 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, appl
 
 def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_hist_eq):
     """ Read Test Data """
-    img, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
+    img, ds, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
 
     # process an image every every x slices
     if os.path.isdir(results_dir) == False:
@@ -232,11 +235,11 @@ def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_h
         print("pred1 mask: "+ slice_lbl)
         print("pred shape, type:" + pred.shape + "," + type(pred))
 
-        #prepare step 1 mask for saving
-        mask1 = (pred > 0.5)  # [0, 1] ?
-        mask1 = byte_normalize_image(mask1)  # [0.0, 255.0]  #may wish to perform this step after to_scale?
+        #prepare step 1 output mask for saving
+        mask1 = (pred > 0.5)  # [False, True]
+        mask1 = mask1.astype(SEG_DTYPE)  # byte [0, 1]
+        #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
-        mask1 = mask1.astype(SEG_DTYPE)  # byte [0, 255]
 
         fname = results_dir + os.path.sep + 'pred1_mask_' + slice_lbl + '.png'
         # Visualize results
