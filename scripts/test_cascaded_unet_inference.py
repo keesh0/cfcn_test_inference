@@ -112,12 +112,12 @@ def to_scale(img, shape=None):
     height, width = shape
     if img.dtype == SEG_DTYPE:
         # This function is only available if Python Imaging Library (PIL) is installed.
-        # 888 Interpolation to use for re-sizing ('nearest', 'lanczos', 'bilinear', 'bicubic' or 'cubic').
-        return scipy.misc.imresize(img,(height,width),interp="nearest").astype(SEG_DTYPE)
+        # Interpolation to use for re-sizing ('nearest', 'lanczos', 'bilinear', 'bicubic' or 'cubic').
+        return scipy.misc.imresize(img,(height,width),interp="bicubic").astype(SEG_DTYPE)  # was "nearest"
     elif img.dtype == IMG_DTYPE:
         max_ = np.max(img)
         factor = 255.0/max_ if max_ != 0 else 1
-        return (scipy.misc.imresize(img,(height,width),interp="nearest")/factor).astype(IMG_DTYPE)
+        return (scipy.misc.imresize(img,(height,width),interp="bicubic")/factor).astype(IMG_DTYPE)  # was "nearest"
     else:
         raise TypeError('Error. To scale the image array, its type must be np.uint8 or np.float64. (' + str(img.dtype) + ')')
 
@@ -233,15 +233,14 @@ def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_h
         print("pred shape, type:" + pred.shape + "," + type(pred))
 
         #prepare step 1 mask for saving
-        mask1 = (pred > 0.5)
-        mask1 = byte_normalize_image(mask1)
-        #If you change any to_img_scale call, make sure that it uses the same interpolation algorithm
-        mask1 = to_scale(mask1, (num_rows, num_cols))
-        mask1 = mask1.astype(SEG_DTYPE)
+        mask1 = (pred > 0.5)  # [0, 1] ?
+        mask1 = byte_normalize_image(mask1)  # [0.0, 255.0]  #may wish to perform this step after to_scale?
+        mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
+        mask1 = mask1.astype(SEG_DTYPE)  # byte [0, 255]
 
         fname = results_dir + os.path.sep + 'pred1_mask_' + slice_lbl + '.png'
         # Visualize results
-        imsave.imsave(fname, (pred>0.5))
+        imsave.imsave(fname, mask1)
 
     # Free up memory of step1 network
     del net1  #needed ?
