@@ -18,6 +18,12 @@ import scipy
 import scipy.misc
 
 import dicom
+from dicom.dataset import Dataset
+from dicom.dataset import FileDataset
+import datetime
+import time
+import platform
+
 import natsort
 import glob
 
@@ -100,6 +106,63 @@ def read_dicom_series(directory, filepattern = "image_*"):
                 b = 0
                 m = 1
     return ArrayDicom, Arrayds, len(lstFilesDCM), wc, ww, b, m
+
+def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern = ".dcm"):
+    (rows, cols) = img_slice.shape
+    base_fname = str(slice_no).zfill(6)
+    filename = outputdirectory + os.path.sep + base_fname + "_mask1" + filepattern
+
+    file_meta = Dataset()
+    #will need to generate all UID for real
+    file_meta.MediaStorageSOPClassUID = 'Secondary Capture Image Storage'
+    file_meta.MediaStorageSOPInstanceUID = '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
+    file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.4.0'
+    ds = FileDataset(filename, {}, file_meta = file_meta, preamble="\0"*128)
+    ds.Modality = ds2.Modality
+    ds.ContentDate = str(datetime.date.today()).replace('-','')
+    ds.ContentTime = str(time.time()) #milliseconds since the epoch
+    ds.StudyInstanceUID =  '1.3.6.1.4.1.9590.100.1.1.124313977412360175234271287472804872093'
+    ds.SeriesInstanceUID = '1.3.6.1.4.1.9590.100.1.1.369231118011061003403421859172643143649'
+    ds.SOPInstanceUID =    '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
+    ds.SOPClassUID = 'Secondary Capture Image Storage'
+    ds.SecondaryCaptureDeviceManufctur = platform.sys.version
+
+    ## These are the necessary imaging components of the FileDataset object.
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.PixelRepresentation = 0
+    ds.HighBit = 7
+    ds.BitsStored = 8
+    ds.BitsAllocated = 8
+    ds.SmallestImagePixelValue = '\\x00\\x00'
+    ds.LargestImagePixelValue = '\\x01\\x01'
+    ds.Columns = cols
+    ds.Rows = rows
+    ds.PixelData = img_slice.tobytes()
+
+    ds.ImplementationVersionName = "pydicom"  #should add version too
+    image_type_val = ds_slice[0x0008, 0x0008].value
+    image_type_val_str = "\\".join(str(x) for x in image_type_val)
+    image_type_val_str2 = image_type_val_str.replace("ORIGINAL", "DERIVED", 1)
+    ds.ImageType = image_type_val_str2
+
+    ds.SliceThickness = ds_slice[0x0018, 0x0050].value
+    ds.SpacingBetweenSlices = ds_slice[0x0018, 0x0088].value
+
+    ds.SeriesNumber = ds_slice[0x0020, 0x0011].value
+    ds.InstanceNumber = ds_slice[0x0020, 0x0013].value
+
+    ds.ImagePosition = ds_slice[0x0020, 0x0032].value # 0020,0032  Image Position (Patient): 0\0\0
+    ds.ImageOrientation = ds_slice[0x0020, 0x0037].value # 0020,0037  Image Orientation (Patient): 1\0\0\0\1\0
+    ds.PixelSpacing = ds_slice[0x0028, 0x0030].value # 0028,0030 Pixel Spacing 0.742999970912933\0.742999970912933
+    8
+    #Display components
+    ds.WindowCenter = [0]   #0028,1050  Window Center
+    ds.WindowWidth = [0]  #0028,1051  Window Width
+    ds.RescaleIntercept = 0  #0028,1052  Rescale Intercept: 0
+    ds.RescaleSlope = 1 #0028,1053  Rescale Slope: 1
+
+    ds.save_as(filename)
 
 
 """ Image Stats / Display"""
