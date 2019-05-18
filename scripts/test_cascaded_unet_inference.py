@@ -125,7 +125,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.SeriesInstanceUID = '1.3.6.1.4.1.9590.100.1.1.369231118011061003403421859172643143649'
     ds.SOPInstanceUID =    '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
     ds.SOPClassUID = 'Secondary Capture Image Storage'
-    ds.SecondaryCaptureDeviceManufctur = platform.sys.version
+    ds.SecondaryCaptureDeviceManufacturer = platform.sys.version
 
     ## These are the necessary imaging components of the FileDataset object.
     ds.SamplesPerPixel = 1
@@ -152,10 +152,11 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.SeriesNumber = ds_slice[0x0020, 0x0011].value
     ds.InstanceNumber = ds_slice[0x0020, 0x0013].value
 
-    ds.ImagePosition = ds_slice[0x0020, 0x0032].value # 0020,0032  Image Position (Patient): 0\0\0
-    ds.ImageOrientation = ds_slice[0x0020, 0x0037].value # 0020,0037  Image Orientation (Patient): 1\0\0\0\1\0
+    ds.ImagePositionPatient = ds_slice[0x0020, 0x0032].value # 0020,0032  Image Position (Patient): 0\0\0
+    ds.ImageOrientationPatient = ds_slice[0x0020, 0x0037].value # 0020,0037  Image Orientation (Patient): 1\0\0\0\1\0
+    ds.SliceLocation = ds_slice[0x0020, 0x1041].value
     ds.PixelSpacing = ds_slice[0x0028, 0x0030].value # 0028,0030 Pixel Spacing 0.742999970912933\0.742999970912933
-    8
+
     #Display components
     ds.WindowCenter = [0]   #0028,1050  Window Center
     ds.WindowWidth = [0]  #0028,1051  Window Width
