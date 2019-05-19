@@ -148,7 +148,12 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.ImageType = image_type_val_str2
 
     ds.SliceThickness = ds_slice[0x0018, 0x0050].value
-    ds.SpacingBetweenSlices = ds_slice[0x0018, 0x0088].value
+
+    #this tag may be missing
+    try:
+        ds.SpacingBetweenSlices = ds_slice[0x0018, 0x0088].value
+    except:
+        pass
 
     ds.SeriesNumber = ds_slice[0x0020, 0x0011].value
     ds.InstanceNumber = ds_slice[0x0020, 0x0013].value
@@ -297,7 +302,7 @@ def perform_inference(input_dir, results_dir, apply_user_wl, apply_hist_eq):
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
 
-        write_dicom_mask(img_slice, ds_slice, slice_no, results_dir)
+        write_dicom_mask(mask1, ds_slice, slice_no, results_dir)
 
     # Free up memory of step1 network
     del net1  #needed ?
