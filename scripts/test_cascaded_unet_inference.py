@@ -4,16 +4,12 @@
 # ref https://github.com/IBBM/Cascaded-FCN
 import os
 import sys
-import wget  #keesh added to replace !wget
-import argparse  #keesh added to add options
+import wget  # keesh added to replace !wget
+import argparse  # keesh added to add options
 
-import caffe  #which version to build?
+import caffe  # which version to build?
 
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib import image as imsave
-from IPython import display
-
 import scipy
 import scipy.misc
 
@@ -48,10 +44,8 @@ def main(inpArgs):
         # May get 1394 error -- hopefully not serious
         # also Check failed: status == CUDNN_STATUS_SUCCESS (1 vs. 0)  CUDNN_STATUS_NOT_INITIALIZED
         caffe.set_mode_cpu()
-        # Use GPU for inference -- does this ever work any any VM?
-        #caffe.set_mode_gpu()
-
-        plt.set_cmap('gray')
+        # Use GPU for inference -- does this ever work any any VM?  Need exact CUDA version installed?
+        # caffe.set_mode_gpu()
 
         apply_user_wl = False
         if inpArgs.apply_user_wl.lower() == "true":  # "true" or "false" as a string
@@ -61,8 +55,7 @@ def main(inpArgs):
         if inpArgs.apply_hist_eq.lower() == "true":  # "true" or "false" as a string
             apply_hist_eq = True
 
-        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), int(inpArgs.slice_skip),
-                          apply_user_wl, apply_hist_eq)
+        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), apply_user_wl, apply_hist_eq)
 
         sys.exit(0)
     except IOError as ioex:
@@ -121,12 +114,12 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     filename = outputdirectory + os.path.sep + base_fname + "_mask1" + filepattern
 
     file_meta = Dataset()
-    #will need to generate all UID for real
+    #will need to generate all UID  uniqly see Mayo Image Studio
     file_meta.MediaStorageSOPClassUID = 'Secondary Capture Image Storage'
     file_meta.MediaStorageSOPInstanceUID = '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
     file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.4.0'
     ds = FileDataset(filename, {}, file_meta = file_meta, preamble="\0"*128)
-    ds.Modality = ds2.Modality
+    ds.Modality = ds_slice.Modality
     ds.ContentDate = str(datetime.date.today()).replace('-','')
     ds.ContentTime = str(time.time()) #milliseconds since the epoch
     ds.StudyInstanceUID =  '1.3.6.1.4.1.9590.100.1.1.124313977412360175234271287472804872093'
@@ -165,7 +158,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.SliceLocation = ds_slice[0x0020, 0x1041].value
     ds.PixelSpacing = ds_slice[0x0028, 0x0030].value # 0028,0030 Pixel Spacing 0.742999970912933\0.742999970912933
 
-    #Display components
+    # display components
     ds.WindowCenter = [0]   #0028,1050  Window Center
     ds.WindowWidth = [0]  #0028,1051  Window Width
     ds.RescaleIntercept = 0  #0028,1052  Rescale Intercept: 0
@@ -210,6 +203,7 @@ def normalize_image_using_rescale_slope_intercept(img, m, b):
     """ Normalize image values to y = mx + b """
     return ((m * img) + b)
 
+
 def histeq_processor(img):
     """Histogram equalization"""
     nbr_bins=256
@@ -222,6 +216,7 @@ def histeq_processor(img):
     img = np.interp(img.flatten(),bins[:-1],cdf)
     img=img/255.0
     return img.reshape(original_shape)
+
 
 def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir):
     """
@@ -258,11 +253,6 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, appl
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
-    # save HU image to disk
-    slice_lbl = "slice" + str(slice)
-    fname = results_dir + os.path.sep + 'preproc1hu_' + slice_lbl + '.png'
-    imsave.imsave(fname, img_slc)
-
     img_slc   = normalize_image(img_slc)
     img_slc   = to_scale(img_slc, (388,388))
     img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
@@ -273,7 +263,7 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, appl
     return img_slc
 
 
-def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_hist_eq):
+def perform_inference(input_dir, results_dir, apply_user_wl, apply_hist_eq):
     """ Read Test Data """
     img, ds, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
 
@@ -320,11 +310,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
-    parser.add_argument("-s", dest="slice_skip", help="How many slices to skip via mod test")
     parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="true or false. Whether to apply user-defined W/L in pre-processing")
     parser.add_argument("-h", "--apply_hist_eq", dest="apply_hist_eq", help="true or false. Whether to apply histogram equalization in pre-processing")
-    if len(sys.argv) < 6:
-        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -s 20 --apply_user_wl <true|false> --apply_hist_eq <true|false>")
+    if len(sys.argv) < 5:
+        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> --apply_user_wl <true|false> --apply_hist_eq <true|false>")
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
