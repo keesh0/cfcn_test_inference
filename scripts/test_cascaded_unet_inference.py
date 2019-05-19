@@ -289,7 +289,7 @@ def perform_inference(input_dir, results_dir, apply_user_wl, apply_hist_eq):
 
         pred = net1.forward()['prob'][0,1] > 0.5
         print("pred1 mask: "+ str(slice_no))
-        print("pred shape, type:" + pred.shape + "," + type(pred))
+        print("pred shape, type:" + str(pred.shape) + "," + str(type(pred)))
 
         #prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
@@ -311,7 +311,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="true or false. Whether to apply user-defined W/L in pre-processing")
-    parser.add_argument("-h", "--apply_hist_eq", dest="apply_hist_eq", help="true or false. Whether to apply histogram equalization in pre-processing")
+    parser.add_argument("-e", "--apply_hist_eq", dest="apply_hist_eq", help="true or false. Whether to apply histogram equalization in pre-processing")
     if len(sys.argv) < 5:
         print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> --apply_user_wl <true|false> --apply_hist_eq <true|false>")
         sys.exit(1)
