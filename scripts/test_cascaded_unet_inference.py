@@ -53,8 +53,16 @@ def main(inpArgs):
 
         plt.set_cmap('gray')
 
+        apply_user_wl = False
+        if inpArgs.apply_user_wl.lower() == "true":  # "true" or "false" as a string
+            apply_user_wl = True
+
+        apply_hist_eq = False
+        if inpArgs.apply_hist_eq.lower() == "true":  # "true" or "false" as a string
+            apply_hist_eq = True
+
         perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), int(inpArgs.slice_skip),
-                          inpArgs.apply_user_wl, inpArgs.apply_hist_eq)
+                          apply_user_wl, apply_hist_eq)
 
         sys.exit(0)
     except IOError as ioex:
@@ -270,33 +278,27 @@ def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_h
     img, ds, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
 
     # process an image every every x slices
-    if os.path.isdir(results_dir) == False:
+    if not os.path.isdir(results_dir):
         os.mkdir(results_dir)
     # Load network
     net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
     print("step 1 net constructed")
-    for slice in range(0, num_images, mod_slices):
-        img_slice = img[...,slice]
+    for slice_no in range(0, num_images):
+        img_slice = img[..., slice_no]
+        ds_slice = ds[slice_no]
         (num_rows, num_cols) = img_slice.shape
-
-        slice_lbl = "slice" + str(slice)
-        fname = results_dir + os.path.sep + 'orig_' + slice_lbl + '.png'
-        imsave.imsave(fname, img_slice)
 
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img_slice, slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir)
-
-        fname = results_dir + os.path.sep + 'preproc1_' + slice_lbl + '.png'
-        imsave.imsave(fname, img_p)
+        img_p = step1_preprocess_img_slice(img_slice, slice_no, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir)
 
         """ Perform Inference """
         # Predict
         net1.blobs['data'].data[0,0,...] = img_p
-        print("fed slice: " + slice_lbl)
+        print("fed slice: " + str(slice_no))
 
         pred = net1.forward()['prob'][0,1] > 0.5
-        print("pred1 mask: "+ slice_lbl)
+        print("pred1 mask: "+ str(slice_no))
         print("pred shape, type:" + pred.shape + "," + type(pred))
 
         #prepare step 1 output mask for saving
@@ -305,9 +307,7 @@ def perform_inference(input_dir, results_dir, mod_slices, apply_user_wl, apply_h
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
 
-        fname = results_dir + os.path.sep + 'pred1_mask_' + slice_lbl + '.png'
-        # Visualize results
-        imsave.imsave(fname, mask1)
+        write_dicom_mask(img_slice, ds_slice, slice_no, results_dir)
 
     # Free up memory of step1 network
     del net1  #needed ?
@@ -321,10 +321,10 @@ if __name__ == '__main__':
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     parser.add_argument("-s", dest="slice_skip", help="How many slices to skip via mod test")
-    parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="Whether to apply user-defined W/L in pre-processing")
-    parser.add_argument("-h", "--apply_hist_eq", dest="apply_hist_eq", help="Whether to apply histogram equalization in pre-processing")
+    parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="true or false. Whether to apply user-defined W/L in pre-processing")
+    parser.add_argument("-h", "--apply_hist_eq", dest="apply_hist_eq", help="true or false. Whether to apply histogram equalization in pre-processing")
     if len(sys.argv) < 6:
-        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -s 20 --apply_user_wl True --apply_hist_eq False")
+        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -s 20 --apply_user_wl <true|false> --apply_hist_eq <true|false>")
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
