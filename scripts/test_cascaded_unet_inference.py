@@ -4,7 +4,9 @@
 # ref https://github.com/IBBM/Cascaded-FCN
 import os
 import sys
-import wget  # keesh added to replace !wget
+import wget
+
+# keesh added to replace !wget
 import argparse  # keesh added to add options
 
 import caffe  # which version to build?
@@ -86,7 +88,8 @@ def read_dicom_series(directory, filepattern = "image_*"):
 
     # loop through all the DICOM files
     first_time = True
-    wc = ww = 0
+    wc = 0
+    ww = 1
     b = 0
     m = 1
     for filenameDCM in lstFilesDCM:
@@ -96,28 +99,29 @@ def read_dicom_series(directory, filepattern = "image_*"):
         ArrayDicom[:, :, lstFilesDCM.index(filenameDCM)] = ds.pixel_array
         Arrayds[lstFilesDCM.index(filenameDCM)] = ds
         if first_time:
+            # DICOM type 1 required
+            b = float(ds[0x0028, 0x1052].value)  # 0028,1052  Rescale Intercept: -1024
+            m = float(ds[0x0028, 0x1053].value)  # 0028,1053  Rescale Slope: 1
             try:
-                wc = int(ds[0x0028, 0x1050].value)   #0028,1050  Window Center: 40
-                ww = int(ds[0x0028, 0x1051].value)   #0028,1051  Window Width: 400
-                b = float(ds[0x0028, 0x1052].value)  #0028,1052  Rescale Intercept: -1024
-                m = float(ds[0x0028, 0x1053].value)  #0028,1053  Rescale Slope: 1
-                first_time = False
+                wc_str = ds[0x0028, 0x1050].value   # 0028,1050  Window Center: 40
+                ww_str = ds[0x0028, 0x1051].value   # 0028,1051  Window Width: 400
+                wc = wc_str.split()[0]  #take 1st user setting
+                ww = ww_str.split()[0]
             except:
-                wc = ww = 0  #not needed but clearer
-                b = 0
-                m = 1
+                print("Window center and level may be inaccurate!")
+            first_time = False
     return ArrayDicom, Arrayds, len(lstFilesDCM), wc, ww, b, m
 
 def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern = ".dcm"):
-    (rows, cols) = img_slice.shape
-    base_fname = str(slice_no).zfill(6)
-    filename = outputdirectory + os.path.sep + base_fname + "_mask1" + filepattern
-
     file_meta = Dataset()
     #will need to generate all UID  uniqly see Mayo Image Studio
     file_meta.MediaStorageSOPClassUID = 'Secondary Capture Image Storage'
     file_meta.MediaStorageSOPInstanceUID = '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
     file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.4.0'
+
+    series_number = ds_slice[0x0020, 0x0011].value
+    base_fname = str(slice_no).zfill(6)
+    filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + "_mask1" + filepattern
     ds = FileDataset(filename, {}, file_meta = file_meta, preamble="\0"*128)
     ds.Modality = ds_slice.Modality
     ds.ContentDate = str(datetime.date.today()).replace('-','')
@@ -128,7 +132,8 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.SOPClassUID = 'Secondary Capture Image Storage'
     ds.SecondaryCaptureDeviceManufacturer = platform.sys.version
 
-    ## These are the necessary imaging components of the FileDataset object.
+    # These are the necessary imaging components of the FileDataset object.
+    (rows, cols) = img_slice.shape
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
     ds.PixelRepresentation = 0
@@ -149,13 +154,13 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
 
     ds.SliceThickness = ds_slice[0x0018, 0x0050].value
 
-    #this tag may be missing
+    #this tag may be missing (maybe add others)
     try:
         ds.SpacingBetweenSlices = ds_slice[0x0018, 0x0088].value
     except:
         pass
 
-    ds.SeriesNumber = ds_slice[0x0020, 0x0011].value
+    ds.SeriesNumber = series_number
     ds.InstanceNumber = ds_slice[0x0020, 0x0013].value
 
     ds.ImagePositionPatient = ds_slice[0x0020, 0x0032].value # 0020,0032  Image Position (Patient): 0\0\0
@@ -165,7 +170,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
 
     # display components
     ds.WindowCenter = [0]   #0028,1050  Window Center
-    ds.WindowWidth = [0]  #0028,1051  Window Width
+    ds.WindowWidth = [1]  #0028,1051  Window Width
     ds.RescaleIntercept = 0  #0028,1052  Rescale Intercept: 0
     ds.RescaleSlope = 1 #0028,1053  Rescale Slope: 1
 
@@ -176,7 +181,6 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
 def stat(array):
     #may need str casts?
     print('min: ' + np.min(array) + ' max: ' + np.max(array) + ' median: ' + np.median(array) + ' avg: ' + np.mean(array))
-
 
 
 """ Image Preprocessing """
@@ -208,12 +212,12 @@ def normalize_image_using_rescale_slope_intercept(img, m, b):
     """ Normalize image values to y = mx + b """
     return ((m * img) + b)
 
-
 def histeq_processor(img):
     """Histogram equalization"""
     nbr_bins=256
     #get image histogram
-    imhist,bins = np.histogram(img.flatten(),nbr_bins,normed=True)
+    #imhist,bins = np.histogram(img.flatten(),nbr_bins,normed=True)
+    imhist, bins = np.histogram(img.flatten(),nbr_bins)  # keesh updated due to warning Deprecated since version 1.6.0.
     cdf = imhist.cumsum() #cumulative distribution function
     cdf = 255 * cdf / cdf[-1] #normalize
     #use linear interpolation of cdf to find new pixel values
@@ -245,16 +249,20 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, appl
     print("m= " + str(m))
     print("b= " + str(b))
 
+    # CT body from MIS widht=400, level=40
     img_slc[img_slc>1200] = 0
 
     thresh_lo = -100
     thresh_hi = 400
     if apply_user_wl:
-        if wc != 0 and ww != 0:
-            thresh_lo = wc - (ww / 2)
-            thresh_hi = wc + (ww / 2)
+        if ww != 1:
+            thresh_lo = float(wc) - 0.5 - float(ww-1) / 2.0
+            thresh_hi = float(wc) - 0.5 + float(ww-1) / 2.0
+            thresh_hi += 1.0  # +1 due to > sided test
     print("HU thresh low= " + str(thresh_lo))
     print("HU thresh high= " + str(thresh_hi))
+
+    #Do we need to worry about VOI LUT Sequence (0028,3010) is present in our CT images as this will get applied early.
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
@@ -315,7 +323,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
-    parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="true or false. Whether to apply user-defined W/L in pre-processing")
+    parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="true or false. Whether to apply user-defined W/L in pre-processing (WARNING multi-valued may be unreliable)")
     parser.add_argument("-e", "--apply_hist_eq", dest="apply_hist_eq", help="true or false. Whether to apply histogram equalization in pre-processing")
     if len(sys.argv) < 5:
         print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> --apply_user_wl <true|false> --apply_hist_eq <true|false>")
