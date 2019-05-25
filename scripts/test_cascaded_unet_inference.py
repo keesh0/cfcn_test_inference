@@ -102,12 +102,15 @@ def read_dicom_series(directory, filepattern = "image_*"):
             # DICOM type 1 required
             b = float(ds[0x0028, 0x1052].value)  # 0028,1052  Rescale Intercept: -1024
             m = float(ds[0x0028, 0x1053].value)  # 0028,1053  Rescale Slope: 1
-            try:
-                wc_str = ds[0x0028, 0x1050].value   # 0028,1050  Window Center: 40
-                ww_str = ds[0x0028, 0x1051].value   # 0028,1051  Window Width: 400
-                wc = wc_str.split()[0]  #take 1st user setting
-                ww = ww_str.split()[0]
+            # handling multi-valued W/L is NP hard
+            try:  # single valued W/L
+                wc = float(ds[0x0028, 0x1050].value) # 0028,1050  Window Center: 40
+                ww = float(ds[0x0028, 0x1051].value) # 0028,1051  Window Width: 400
             except:
+                wc_list = list(ds[0x0028, 0x1050].value)   # 0028,1050  Window Center: 40
+                ww_list = list(ds[0x0028, 0x1051].value)   # 0028,1051  Window Width: 400
+                wc = float(wc_list[0]) # take 1st user setting
+                ww = float(ww_list[0]) # take 1st user setting
                 print("Window center and level may be inaccurate!")
             first_time = False
     return ArrayDicom, Arrayds, len(lstFilesDCM), wc, ww, b, m
@@ -126,9 +129,9 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.Modality = ds_slice.Modality
     ds.ContentDate = str(datetime.date.today()).replace('-','')
     ds.ContentTime = str(time.time()) #milliseconds since the epoch
-    ds.StudyInstanceUID =  '1.3.6.1.4.1.9590.100.1.1.124313977412360175234271287472804872093'
+    ds.StudyInstanceUID = '1.3.6.1.4.1.9590.100.1.1.124313977412360175234271287472804872093'
     ds.SeriesInstanceUID = '1.3.6.1.4.1.9590.100.1.1.369231118011061003403421859172643143649'
-    ds.SOPInstanceUID =    '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
+    ds.SOPInstanceUID = '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
     ds.SOPClassUID = 'Secondary Capture Image Storage'
     ds.SecondaryCaptureDeviceManufacturer = platform.sys.version
 
@@ -154,9 +157,10 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
 
     ds.SliceThickness = ds_slice[0x0018, 0x0050].value
 
-    #this tag may be missing (maybe add others)
+    #these tags may be missingg
     try:
         ds.SpacingBetweenSlices = ds_slice[0x0018, 0x0088].value
+        ds.SliceLocation = ds_slice[0x0020, 0x1041].value
     except:
         pass
 
@@ -165,14 +169,14 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
 
     ds.ImagePositionPatient = ds_slice[0x0020, 0x0032].value # 0020,0032  Image Position (Patient): 0\0\0
     ds.ImageOrientationPatient = ds_slice[0x0020, 0x0037].value # 0020,0037  Image Orientation (Patient): 1\0\0\0\1\0
-    ds.SliceLocation = ds_slice[0x0020, 0x1041].value
+
     ds.PixelSpacing = ds_slice[0x0028, 0x0030].value # 0028,0030 Pixel Spacing 0.742999970912933\0.742999970912933
 
     # display components
-    ds.WindowCenter = [0]   #0028,1050  Window Center
-    ds.WindowWidth = [1]  #0028,1051  Window Width
-    ds.RescaleIntercept = 0  #0028,1052  Rescale Intercept: 0
-    ds.RescaleSlope = 1 #0028,1053  Rescale Slope: 1
+    ds.WindowCenter = [0]   # 0028,1050  Window Center
+    ds.WindowWidth = [1]  # 0028,1051  Window Width
+    ds.RescaleIntercept = 0  # 0028,1052  Rescale Intercept: 0
+    ds.RescaleSlope = 1 # 0028,1053  Rescale Slope: 1
 
     ds.save_as(filename)
 
