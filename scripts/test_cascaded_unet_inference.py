@@ -30,6 +30,7 @@ STEP1_DEPLOY_PROTOTXT = "../models/cascadedfcn/step1/step1_deploy.prototxt"
 STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
 IMG_DTYPE = np.float
 SEG_DTYPE = np.uint8
+first_time = True  # move to class when prototype is stable
 
 def main(inpArgs):
     try:
@@ -49,15 +50,11 @@ def main(inpArgs):
         # Use GPU for inference -- does this ever work any any VM?  Need exact CUDA version installed?
         # caffe.set_mode_gpu()
 
-        apply_user_wl = False
-        if inpArgs.apply_user_wl.lower() == "true":  # "true" or "false" as a string
-            apply_user_wl = True
+        apply_new_preproc = False
+        if inpArgs.apply_new_preproc.lower() == "true":  # "true" or "false" as a string
+            apply_new_preproc = True
 
-        apply_hist_eq = False
-        if inpArgs.apply_hist_eq.lower() == "true":  # "true" or "false" as a string
-            apply_hist_eq = True
-
-        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), apply_user_wl, apply_hist_eq)
+        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), apply_new_preproc)
 
         sys.exit(0)
     except IOError as ioex:
@@ -87,9 +84,6 @@ def read_dicom_series(directory, filepattern = "image_*"):
     Arrayds = [None] * len(lstFilesDCM)
 
     # loop through all the DICOM files
-    first_time = True
-    wc = 0
-    ww = 1
     b = 0
     m = 1
     for filenameDCM in lstFilesDCM:
@@ -102,18 +96,10 @@ def read_dicom_series(directory, filepattern = "image_*"):
             # DICOM type 1 required
             b = float(ds[0x0028, 0x1052].value)  # 0028,1052  Rescale Intercept: -1024
             m = float(ds[0x0028, 0x1053].value)  # 0028,1053  Rescale Slope: 1
-            # handling multi-valued W/L is NP hard
-            try:  # single valued W/L
-                wc = float(ds[0x0028, 0x1050].value) # 0028,1050  Window Center: 40
-                ww = float(ds[0x0028, 0x1051].value) # 0028,1051  Window Width: 400
-            except:
-                wc_list = list(ds[0x0028, 0x1050].value)   # 0028,1050  Window Center: 40
-                ww_list = list(ds[0x0028, 0x1051].value)   # 0028,1051  Window Width: 400
-                wc = float(wc_list[0]) # take 1st user setting
-                ww = float(ww_list[0]) # take 1st user setting
-                print("Window center and level may be inaccurate!")
-            first_time = False
-    return ArrayDicom, Arrayds, len(lstFilesDCM), wc, ww, b, m
+            print("b= " + str(b))
+            print("m= " + str(m))
+
+    return ArrayDicom, Arrayds, len(lstFilesDCM), b, m
 
 def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern = ".dcm"):
     file_meta = Dataset()
@@ -231,7 +217,7 @@ def histeq_processor(img):
     return img.reshape(original_shape)
 
 
-def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir):
+def step1_preprocess_img_slice(img_slc, slice, b, m, apply_new_preproc, results_dir):
     """
     Preprocesses the image 3d volumes by performing the following :
     1- Rotate the input volume so the the liver is on the left, spine is at the bottom of the image
@@ -248,41 +234,38 @@ def step1_preprocess_img_slice(img_slc, slice, wc, ww, b, m, apply_user_wl, appl
     """
     img_slc   = img_slc.astype(IMG_DTYPE)
 
-    #apply m and b
+    # must apply m and b first
     img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
-    print("m= " + str(m))
-    print("b= " + str(b))
 
-    # CT body from MIS widht=400, level=40
+    # Should we increase the threshold range (if we are missing liver)?
+    # CT body from MIS level=40, width=400  [-160, 240]
+    # CT liver from IJ level 80, width=150  [5, 155]
+    # CT abd from IJ level=50, width=350 [-125, 225]
     img_slc[img_slc>1200] = 0
 
     thresh_lo = -100
     thresh_hi = 400
-    if apply_user_wl:
-        if ww != 1:
-            thresh_lo = float(wc) - 0.5 - float(ww-1) / 2.0
-            thresh_hi = float(wc) - 0.5 + float(ww-1) / 2.0
-            thresh_hi += 1.0  # +1 due to > sided test
-    print("HU thresh low= " + str(thresh_lo))
-    print("HU thresh high= " + str(thresh_hi))
+    if first_time:
+        print("thresh low  (HU)= " + str(thresh_lo))
+        print("thresh high (HU)= " + str(thresh_hi))
 
-    #Do we need to worry about VOI LUT Sequence (0028,3010) is present in our CT images as this will get applied early.
+    # Do we need to worry about VOI LUT Sequence (0028,3010) presennce in our CT images as this should get applied early.
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
-    img_slc   = normalize_image(img_slc)
+    # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
+    # then convert back to IMG_DTYPE.  Can we convert MIS Auto W/L to work with doubles?
+
+    img_slc   = normalize_image(img_slc)  # [0,1]
     img_slc   = to_scale(img_slc, (388,388))
     img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
-
-    if apply_hist_eq:
-        img_slc = histeq_processor(img_slc)
 
     return img_slc
 
 
-def perform_inference(input_dir, results_dir, apply_user_wl, apply_hist_eq):
+def perform_inference(input_dir, results_dir, apply_new_preproc):
     """ Read Test Data """
-    img, ds, num_images, wc, ww, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
+    img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
 
     # process an image every every x slices
     if not os.path.isdir(results_dir):
@@ -297,7 +280,7 @@ def perform_inference(input_dir, results_dir, apply_user_wl, apply_hist_eq):
 
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img_slice, slice_no, wc, ww, b, m, apply_user_wl, apply_hist_eq, results_dir)
+        img_p = step1_preprocess_img_slice(img_slice, slice_no, b, m, apply_new_preproc, results_dir)
 
         """ Perform Inference """
         # Predict
@@ -316,6 +299,8 @@ def perform_inference(input_dir, results_dir, apply_user_wl, apply_hist_eq):
 
         write_dicom_mask(mask1, ds_slice, slice_no, results_dir)
 
+        if first_time:
+            first_time = False
     # Free up memory of step1 network
     del net1  #needed ?
 
@@ -327,10 +312,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
-    parser.add_argument("-w", "--apply_user_wl", dest="apply_user_wl", help="true or false. Whether to apply user-defined W/L in pre-processing (WARNING multi-valued may be unreliable)")
-    parser.add_argument("-e", "--apply_hist_eq", dest="apply_hist_eq", help="true or false. Whether to apply histogram equalization in pre-processing")
+    parser.add_argument("-w", "--apply_new_preproc", dest="apply_new_preproc", help="true or false. Whether to apply new pre-processing du jour")
     if len(sys.argv) < 5:
-        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> --apply_user_wl <true|false> --apply_hist_eq <true|false>")
+        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> --apply_new_preproc <true|false>")
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
