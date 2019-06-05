@@ -44,17 +44,15 @@ def main(inpArgs):
 
         print("caffe__file: " + caffe.__file__)
         # Use CPU for inference
-        # May get 1394 error -- hopefully not serious
-        # also Check failed: status == CUDNN_STATUS_SUCCESS (1 vs. 0)  CUDNN_STATUS_NOT_INITIALIZED
-        caffe.set_mode_cpu()
-        # Use GPU for inference -- does this ever work any any VM?  Need exact CUDA version installed?
-        # caffe.set_mode_gpu()
+        # caffe.set_mode_cpu()
+        # Use GPU for inference -- Need exact CUDA version/driver synched with Caffe!
+        caffe.set_mode_gpu()
 
-        apply_new_preproc = False
-        if inpArgs.apply_new_preproc.lower() == "true":  # "true" or "false" as a string
-            apply_new_preproc = True
+        test_feature = False
+        if inpArgs.test_feature.lower() == "true":  # "true" or "false" as a string
+            test_feature = True
 
-        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), apply_new_preproc)
+        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir), test_feature)
 
         sys.exit(0)
     except IOError as ioex:
@@ -217,7 +215,7 @@ def histeq_processor(img):
     return img.reshape(original_shape)
 
 
-def step1_preprocess_img_slice(img_slc, slice, b, m, apply_new_preproc, results_dir):
+def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     """
     Preprocesses the image 3d volumes by performing the following :
     1- Rotate the input volume so the the liver is on the left, spine is at the bottom of the image
@@ -263,9 +261,13 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, apply_new_preproc, results_
     return img_slc
 
 
-def perform_inference(input_dir, results_dir, apply_new_preproc):
+def perform_inference(input_dir, results_dir, test_feature):
     """ Read Test Data """
-    img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern="*.dcm")
+    dcm_pattern = "*.dcm"
+    if test_feature:
+        dcm_pattern = "image_*"
+
+    img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern=dcm_pattern)
 
     # process an image every every x slices
     if not os.path.isdir(results_dir):
@@ -280,7 +282,7 @@ def perform_inference(input_dir, results_dir, apply_new_preproc):
 
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img_slice, slice_no, b, m, apply_new_preproc, results_dir)
+        img_p = step1_preprocess_img_slice(img_slice, slice_no, b, m, test_feature, results_dir)
 
         """ Perform Inference """
         # Predict
@@ -312,9 +314,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
-    parser.add_argument("-w", "--apply_new_preproc", dest="apply_new_preproc", help="true or false. Whether to apply new pre-processing du jour")
+    parser.add_argument("-t", "--test_feature", dest="test_feature", help="true or false. Whether to apply the current test feature")
     if len(sys.argv) < 5:
-        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> --apply_new_preproc <true|false>")
+        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -t <true|false>")
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
