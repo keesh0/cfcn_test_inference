@@ -30,7 +30,6 @@ STEP1_DEPLOY_PROTOTXT = "../models/cascadedfcn/step1/step1_deploy.prototxt"
 STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
 IMG_DTYPE = np.float
 SEG_DTYPE = np.uint8
-first_time = True  # move to class when prototype is stable
 
 def main(inpArgs):
     try:
@@ -90,12 +89,9 @@ def read_dicom_series(directory, filepattern = "image_*"):
         # store the raw image data
         ArrayDicom[:, :, lstFilesDCM.index(filenameDCM)] = ds.pixel_array
         Arrayds[lstFilesDCM.index(filenameDCM)] = ds
-        if first_time:
-            # DICOM type 1 required
-            b = float(ds[0x0028, 0x1052].value)  # 0028,1052  Rescale Intercept: -1024
-            m = float(ds[0x0028, 0x1053].value)  # 0028,1053  Rescale Slope: 1
-            print("b= " + str(b))
-            print("m= " + str(m))
+        # DICOM type 1 required
+        b = float(ds[0x0028, 0x1052].value)  # 0028,1052  Rescale Intercept: -1024
+        m = float(ds[0x0028, 0x1053].value)  # 0028,1053  Rescale Slope: 1
 
     return ArrayDicom, Arrayds, len(lstFilesDCM), b, m
 
@@ -243,9 +239,6 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
 
     thresh_lo = -100
     thresh_hi = 400
-    if first_time:
-        print("thresh low  (HU)= " + str(thresh_lo))
-        print("thresh high (HU)= " + str(thresh_hi))
 
     # Do we need to worry about VOI LUT Sequence (0028,3010) presennce in our CT images as this should get applied early.
 
@@ -272,8 +265,10 @@ def perform_inference(input_dir, results_dir, test_feature):
     # process an image every every x slices
     if not os.path.isdir(results_dir):
         os.mkdir(results_dir)
-    # Load network
-    net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
+    # Load network Caffe 1.0.0
+    net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
+    # Load network pre Caffe 1.0.0
+    # net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
     print("step 1 net constructed")
     for slice_no in range(0, num_images):
         img_slice = img[..., slice_no]
@@ -301,8 +296,6 @@ def perform_inference(input_dir, results_dir, test_feature):
 
         write_dicom_mask(mask1, ds_slice, slice_no, results_dir)
 
-        if first_time:
-            first_time = False
     # Free up memory of step1 network
     del net1  #needed ?
 
