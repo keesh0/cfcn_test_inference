@@ -105,7 +105,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     series_number = ds_slice[0x0020, 0x0011].value
     base_fname = str(slice_no).zfill(6)
     filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + "_mask1" + filepattern
-    ds = FileDataset(filename, {}, file_meta = file_meta, preamble="\0"*128)
+    ds = FileDataset(filename, {}, file_meta = file_meta, preamble=b"\0"*128)
     ds.Modality = ds_slice.Modality
     ds.ContentDate = str(datetime.date.today()).replace('-','')
     ds.ContentTime = str(time.time()) #milliseconds since the epoch
@@ -123,8 +123,8 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.HighBit = 7
     ds.BitsStored = 8
     ds.BitsAllocated = 8
-    ds.SmallestImagePixelValue = '\\x00\\x00'
-    ds.LargestImagePixelValue = '\\x01\\x01'
+    ds.SmallestImagePixelValue = b'\\x00\\x00'
+    ds.LargestImagePixelValue = b'\\x01\\x01'
     ds.Columns = cols
     ds.Rows = rows
     ds.PixelData = img_slice.tobytes()
