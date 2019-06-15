@@ -46,6 +46,7 @@ def main(inpArgs):
         # caffe.set_mode_cpu()
         # Use GPU for inference -- Need exact CUDA version/driver synched with Caffe!
         caffe.set_mode_gpu()
+        caffe.set_device(0)  #needed?
 
         test_feature = False
         if inpArgs.test_feature.lower() == "true":  # "true" or "false" as a string
