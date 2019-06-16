@@ -17,6 +17,9 @@ layer {
       dim: 572
     }
   }
+  include {
+    phase: TEST
+  }
 }
 
 layer {
