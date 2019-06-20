@@ -438,8 +438,7 @@ layer {
   bottom: "u3a"
   top: "d3cc"
   crop_param {
-    offset: 0
-    offset: 0
+    axis: 2
     offset: 4
     offset: 4
   }
@@ -546,8 +545,7 @@ layer {
   bottom: "u2a"
   top: "d2cc"
   crop_param {
-    offset: 0
-    offset: 0
+    axis: 2
     offset: 16
     offset: 16
   }
@@ -654,10 +652,9 @@ layer {
   bottom: "u1a"
   top: "d1cc"
   crop_param {
-      offset: 0
-      offset: 0
-      offset: 40
-      offset: 40
+    axis: 2
+    offset: 40
+    offset: 40
   }
 }
 
@@ -762,8 +759,7 @@ layer {
   bottom: "u0a"
   top: "d0cc"
   crop_param {
-    offset: 0
-    offset: 0
+    axis: 2
     offset: 88
     offset: 88
   }
