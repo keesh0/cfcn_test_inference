@@ -285,6 +285,7 @@ def perform_inference(input_dir, results_dir, test_feature):
         net1.blobs['data'].data[0,0,...] = img_p
         print("fed slice: " + str(slice_no))
 
+        # take the first dim of 'prob' index 0, second dim of 'prob' index 1, and all of  the third dim
         pred = net1.forward()['prob'][0,1] > 0.5
         print("pred1 mask: "+ str(slice_no))
         print("pred shape, type:" + str(pred.shape) + "," + str(type(pred)))
