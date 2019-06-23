@@ -476,6 +476,11 @@ layer {
   bottom: "d3c"
   bottom: "u3a"
   top: "d3cc"
+  crop_param {
+    axis: 2
+    offset: 4
+    offset: 4
+  }
 }
 layer {
   name: "concat_d3cc_u3a-b"
@@ -587,7 +592,11 @@ layer {
   bottom: "d2c"
   bottom: "u2a"
   top: "d2cc"
-
+  crop_param {
+    axis: 2
+    offset: 16
+    offset: 16
+  }
 }
 layer {
   name: "concat_d2cc_u2a-b"
@@ -699,6 +708,11 @@ layer {
   bottom: "d1c"
   bottom: "u1a"
   top: "d1cc"
+  crop_param {
+    axis: 2
+    offset: 40
+    offset: 40
+  }
 
 }
 layer {
@@ -811,7 +825,11 @@ layer {
   bottom: "d0c"
   bottom: "u0a"
   top: "d0cc"
-
+  crop_param {
+    axis: 2
+    offset: 88
+    offset: 88
+  }
 }
 layer {
   name: "concat_d0cc_u0a-b"
