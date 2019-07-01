@@ -1,4 +1,4 @@
-# Python 2.7.6 test script to test the following 3D CRF model on our CT liver images
+# Python 2.7.x test script to test the 3D CRF model on our CFCN step 1 liver masks.
 # ref https://modelzoo.co/model/cascaded-fully-convolutional-networks-for-biomedical
 # ref https://github.com/mbickel/DenseInferenceWrapper
 import os
@@ -17,7 +17,7 @@ import natsort
 import glob
 
 import sys
-# cheap method to find 3DCRF Python 2.7 package under Ubuntu
+# cheap method to find 3DCRF Python 2.7 package under AWS Python 2.7.x caffe env Ubuntu
 sys.path.append('/usr/local/lib/python2.7/dist-packages')
 print('\n'.join(sys.path))
 from denseinference import CRFProcessor
@@ -169,7 +169,7 @@ def step3_preprocess_img_slice(img_slc, b, m):
     Return:
         Preprocessed image slice
     """
-    img_slc   = img_slc.astype(IMG_DTYPE)
+    img_slc = img_slc.astype(IMG_DTYPE)
 
     # must apply m and b first
     img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
@@ -183,49 +183,56 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
     if test_feature:
         dcm_pattern = "image_*"
 
-    # Image: (W, H, D);
-    # 888 switch row/col order
+    print('start perform 3dcrf...')
     img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern=dcm_pattern)  # rows, cols, slices
-
     (num_rows, num_cols, num_slices) = img.shape
+    print("Read from: " + input_dir)
 
     ConstPixelDims = (num_rows, num_cols, num_slices)
-    # The array is sized based on 'ConstPixelDims'
     img_array = np.zeros(ConstPixelDims, dtype=img.dtype)
-    for slice_no in range(0, num_images):
+    for slice_no in range(0, num_slices):
         img_slice = img[..., slice_no]
+        # normalize input image to [0.1]
         img_p = step3_preprocess_img_slice(img_slice, b, m)
         img_array[:, :, slice_no] = img_p
-    # Need to tranpose rows & cols ???
 
-    # Label (W, H, D, C)
+    print('Preprocessed input images')
+
+    # 3DCRF Image: (W, H, D)
+    crf_img  = np.swapaxes(img_array, 0, 1)
+    print("crf image shape: " + str(crf_img.shape))
+
     mask_pattern = "*_mask1.dcm"
     mask, ds_mask, num_mask_images = read_dicom_series(mask_dir + os.path.sep, filepattern=mask_pattern)  # rows, cols, slices
-    # 888 switch row/col order
-
+    # Label (W, H, D, C)
+    crf_mask  = np.swapaxes(mask, 0, 1)
     # Convert 3D mask to 4D tensor
-    feature_tensor = mask[..., newaxis]
-    print(feature_tensor.shape)
-
-    # process an image every every x slices
-    if not os.path.isdir(results_dir):
-        os.mkdir(results_dir)
+    feature_tensor = crf_mask[..., newaxis]
+    print("crf feature tensor shape: " + str(feature_tensor.shape))
 
     # 3D CRF
     pro = CRFProcessor.CRF3DProcessor()
     print("step 3 CRF3DProcessor constructed")
 
     # Now run crf and get hard labeled result tensor:
-    result = pro.set_data_and_run(img, feature_tensor)
+    result = pro.set_data_and_run(crf_img, feature_tensor)
+    print("step 3 CRF3DProcessor complete.")
+
     # Result tensor is hard labeled (W, H, D)
     (W, H, D) = result.shape
+    print("crf result shape: " + str(result.shape))
+
+    mask2  = np.swapaxes(result, 0, 1)
+    print("mask2 shape: " + str(mask2.shape))
 
     # Write out resultant mask2 as DICOM
-    # 888 switch row/col order
+    if not os.path.isdir(results_dir):
+        os.mkdir(results_dir)
     for slice_no in range(0, D):
-        mask2_slice = result[..., slice_no]
+        mask2_slice = mask2[..., slice_no]
         ds_slice = ds[slice_no]
         write_dicom_mask2(mask2_slice, ds_slice, slice_no, results_dir)
+
 
 if __name__ == '__main__':
     '''
@@ -241,4 +248,3 @@ if __name__ == '__main__':
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
-
