@@ -203,7 +203,7 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
     print("crf image shape: " + str(crf_img.shape))
 
     mask_pattern = "*_mask1.dcm"
-    mask, ds_mask, num_mask_images = read_dicom_series(mask_dir + os.path.sep, filepattern=mask_pattern)  # rows, cols, slices
+    mask, ds_mask, num_mask_images, b, m = read_dicom_series(mask_dir + os.path.sep, filepattern=mask_pattern)  # rows, cols, slices
     # Label (W, H, D, C)
     crf_mask  = np.swapaxes(mask, 0, 1)
     # Convert 3D mask to 4D tensor
