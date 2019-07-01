@@ -77,7 +77,7 @@ def read_dicom_series(directory, filepattern = "image_*"):
 
     return ArrayDicom, Arrayds, len(lstFilesDCM), b, m
 
-def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern = ".dcm"):
+def write_dicom_mask2(img_slice, ds_slice, slice_no, outputdirectory, filepattern = ".dcm"):
     file_meta = Dataset()
     #will need to generate all UID  uniqly see Mayo Image Studio
     file_meta.MediaStorageSOPClassUID = 'Secondary Capture Image Storage'
@@ -86,7 +86,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
 
     series_number = ds_slice[0x0020, 0x0011].value
     base_fname = str(slice_no).zfill(6)
-    filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + "_mask1" + filepattern
+    filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + "_mask2" + filepattern
     ds = FileDataset(filename, {}, file_meta = file_meta, preamble=b"\0"*128)
     ds.Modality = ds_slice.Modality
     ds.ContentDate = str(datetime.date.today()).replace('-','')
@@ -159,15 +159,10 @@ def normalize_image_using_rescale_slope_intercept(img, m, b):
     """ Normalize image values to y = mx + b """
     return ((m * img) + b)
 
-def step3_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
+def step3_preprocess_img_slice(img_slc, b, m):
     """
     Preprocesses the image 3d volumes by performing the following :
-    1- Rotate the input volume so the the liver is on the left, spine is at the bottom of the image
-    2- Set pixels with hounsfield value great than 1200, to zero.
-    3- Clip all hounsfield values to the range [-100, 400]
-    4- Normalize values to [0, 1]
-    5- Rescale img and label slices to 388x388
-    6- Pad img slices with 92 pixels on all sides (so total shape is 572x572)
+    1- Normalize values to [0, 1]
 
     Args:
         img_slc: raw image slice
@@ -189,13 +184,24 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
         dcm_pattern = "image_*"
 
     # Image: (W, H, D);
+    # 888 switch row/col order
     img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern=dcm_pattern)  # rows, cols, slices
+
+    (num_rows, num_cols, num_slices) = img.shape
+
+    ConstPixelDims = (num_rows, num_cols, num_slices)
+    # The array is sized based on 'ConstPixelDims'
+    img_array = np.zeros(ConstPixelDims, dtype=img.dtype)
+    for slice_no in range(0, num_images):
+        img_slice = img[..., slice_no]
+        img_p = step3_preprocess_img_slice(img_slice, b, m)
+        img_array[:, :, slice_no] = img_p
     # Need to tranpose rows & cols ???
 
     # Label (W, H, D, C)
     mask_pattern = "*_mask1.dcm"
     mask, ds_mask, num_mask_images = read_dicom_series(mask_dir + os.path.sep, filepattern=mask_pattern)  # rows, cols, slices
-    # Need to tranpose rows & cols ???
+    # 888 switch row/col order
 
     # Convert 3D mask to 4D tensor
     feature_tensor = mask[..., newaxis]
@@ -214,17 +220,12 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
     # Result tensor is hard labeled (W, H, D)
     (W, H, D) = result.shape
 
-    for slice_no in range(0, num_images):
-        img_slice = img[..., slice_no]
+    # Write out resultant mask2 as DICOM
+    # 888 switch row/col order
+    for slice_no in range(0, D):
+        mask2_slice = result[..., slice_no]
         ds_slice = ds[slice_no]
-        (num_rows, num_cols) = img_slice.shape
-
-        # Prepare a test slice
-        # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img_slice, slice_no, b, m, test_feature, results_dir)
-
-        write_dicom_mask(mask1, ds_slice, slice_no, results_dir)
-
+        write_dicom_mask2(mask2_slice, ds_slice, slice_no, results_dir)
 
 if __name__ == '__main__':
     '''
