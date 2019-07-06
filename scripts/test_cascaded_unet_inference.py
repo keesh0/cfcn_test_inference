@@ -30,6 +30,7 @@ STEP1_DEPLOY_PROTOTXT = "../models/cascadedfcn/step1/step1_deploy.prototxt"
 STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
 IMG_DTYPE = np.float
 SEG_DTYPE = np.uint8
+MASK_DTYPE = np.uint16
 
 def main(inpArgs):
     try:
@@ -96,62 +97,37 @@ def read_dicom_series(directory, filepattern = "image_*"):
 
     return ArrayDicom, Arrayds, len(lstFilesDCM), b, m
 
-def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern = ".dcm"):
-    file_meta = Dataset()
-    #will need to generate all UID  uniqly see Mayo Image Studio
-    file_meta.MediaStorageSOPClassUID = 'Secondary Capture Image Storage'
-    file_meta.MediaStorageSOPInstanceUID = '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
-    file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.4.0'
-
+def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix, filepattern = ".dcm"):
     series_number = ds_slice[0x0020, 0x0011].value
     base_fname = str(slice_no).zfill(6)
-    filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + "_mask1" + filepattern
-    ds = FileDataset(filename, {}, file_meta = file_meta, preamble=b"\0"*128)
-    ds.Modality = ds_slice.Modality
-    ds.ContentDate = str(datetime.date.today()).replace('-','')
-    ds.ContentTime = str(time.time()) #milliseconds since the epoch
-    ds.StudyInstanceUID = '1.3.6.1.4.1.9590.100.1.1.124313977412360175234271287472804872093'
-    ds.SeriesInstanceUID = '1.3.6.1.4.1.9590.100.1.1.369231118011061003403421859172643143649'
-    ds.SOPInstanceUID = '1.3.6.1.4.1.9590.100.1.1.111165684411017669021768385720736873780'
-    ds.SOPClassUID = 'Secondary Capture Image Storage'
-    ds.SecondaryCaptureDeviceManufacturer = platform.sys.version
+    filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + mask_suffix + filepattern
+    ds = FileDataset(filename, ds_slice, file_meta=ds_slice.file_meta, preamble=b"\0" * 128)
+
+    ds.SOPInstanceUID = ds_slice.SOPInstanceUID
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.StudyID = "123"
+    ds.PatientName = "Liver^Larry^H"
+
+    # Set the transfer syntax
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
 
     # These are the necessary imaging components of the FileDataset object.
     (rows, cols) = img_slice.shape
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
     ds.PixelRepresentation = 0
-    ds.HighBit = 7
-    ds.BitsStored = 8
-    ds.BitsAllocated = 8
-    ds.SmallestImagePixelValue = b'\\x00\\x00'
-    ds.LargestImagePixelValue = b'\\x01\\x01'
+    ds.HighBit = 15
+    ds.BitsStored = 16
+    ds.BitsAllocated = 16
     ds.Columns = cols
     ds.Rows = rows
     ds.PixelData = img_slice.tobytes()
 
-    ds.ImplementationVersionName = "pydicom"  #should add version too
     image_type_val = ds_slice[0x0008, 0x0008].value
     image_type_val_str = "\\".join(str(x) for x in image_type_val)
     image_type_val_str2 = image_type_val_str.replace("ORIGINAL", "DERIVED", 1)
     ds.ImageType = image_type_val_str2
-
-    ds.SliceThickness = ds_slice[0x0018, 0x0050].value
-
-    #these tags may be missingg
-    try:
-        ds.SpacingBetweenSlices = ds_slice[0x0018, 0x0088].value
-        ds.SliceLocation = ds_slice[0x0020, 0x1041].value
-    except:
-        pass
-
-    ds.SeriesNumber = series_number
-    ds.InstanceNumber = ds_slice[0x0020, 0x0013].value
-
-    ds.ImagePositionPatient = ds_slice[0x0020, 0x0032].value # 0020,0032  Image Position (Patient): 0\0\0
-    ds.ImageOrientationPatient = ds_slice[0x0020, 0x0037].value # 0020,0037  Image Orientation (Patient): 1\0\0\0\1\0
-
-    ds.PixelSpacing = ds_slice[0x0028, 0x0030].value # 0028,0030 Pixel Spacing 0.742999970912933\0.742999970912933
 
     # display components
     ds.WindowCenter = [0]   # 0028,1050  Window Center
@@ -160,7 +136,6 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, filepattern
     ds.RescaleSlope = 1 # 0028,1053  Rescale Slope: 1
 
     ds.save_as(filename)
-
 
 """ Image Stats / Display"""
 def stat(array):
@@ -176,12 +151,15 @@ def to_scale(img, shape=None):
         # This function is only available if Python Imaging Library (PIL) is installed.
         # Interpolation to use for re-sizing ('nearest', 'lanczos', 'bilinear', 'bicubic' or 'cubic').
         return scipy.misc.imresize(img,(height,width),interp="nearest").astype(SEG_DTYPE)
+    #  888 Why do we normalize assuming 255.0 ???
     elif img.dtype == IMG_DTYPE:
         max_ = np.max(img)
         factor = 255.0/max_ if max_ != 0 else 1
         return (scipy.misc.imresize(img,(height,width),interp="nearest")/factor).astype(IMG_DTYPE)
+    elif img.dtype == MASK_DTYPE:
+        return scipy.misc.imresize(img,(height,width),interp="nearest").astype(MASK_DTYPE)
     else:
-        raise TypeError('Error. To scale the image array, its type must be np.uint8 or np.float64. (' + str(img.dtype) + ')')
+        raise TypeError('Error. To scale the image array, its type must be np.uint8 or np.float64 or np.uint16. (' + str(img.dtype) + ')')
 
 def normalize_image(img):
     """ Normalize image values to [0,1] """
@@ -292,12 +270,11 @@ def perform_inference(input_dir, results_dir, test_feature):
 
         #prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
-        mask1 = mask1.astype(SEG_DTYPE)  # byte [0, 1]
+        mask1 = mask1.astype(MASK_DTYPE)  # uint16 [0, 1]  was SEG_DTYPE
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
 
-        write_dicom_mask(mask1, ds_slice, slice_no, results_dir)
-
+        write_dicom_mask(mask1, ds_slice, slice_no, results_dir, mask_suffix="_mask1")
     # Free up memory of step1 network
     del net1  #needed ?
 
