@@ -139,8 +139,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix
 
 """ Image Stats / Display"""
 def stat(array):
-    #may need str casts?
-    print('min: ' + np.min(array) + ' max: ' + np.max(array) + ' median: ' + np.median(array) + ' avg: ' + np.mean(array))
+    print('min: ' + str(np.min(array)) + ' max: ' + str(np.max(array)) + ' median: ' + str(np.median(array)) + ' avg: ' + str(np.mean(array)))
 
 
 """ Image Preprocessing """
@@ -151,7 +150,6 @@ def to_scale(img, shape=None):
         # This function is only available if Python Imaging Library (PIL) is installed.
         # Interpolation to use for re-sizing ('nearest', 'lanczos', 'bilinear', 'bicubic' or 'cubic').
         return scipy.misc.imresize(img,(height,width),interp="nearest").astype(SEG_DTYPE)
-    #  888 Why do we normalize assuming 255.0 ???
     elif img.dtype == IMG_DTYPE:
         max_ = np.max(img)
         factor = 255.0/max_ if max_ != 0 else 1

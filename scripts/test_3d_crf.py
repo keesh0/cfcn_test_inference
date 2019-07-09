@@ -77,6 +77,7 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
         img_array[:, :, slice_no] = img_p
 
     print('Preprocessed input images')
+    stat(img_array)
 
     # 3DCRF Image: (W, H, D)
     crf_img  = np.swapaxes(img_array, 0, 1)
@@ -89,6 +90,7 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
     # Convert 3D mask to 4D tensor
     feature_tensor = crf_mask[..., newaxis]
     print("crf feature tensor shape: " + str(feature_tensor.shape))
+    stat(feature_tensor)
 
     # 3D CRF
     pro = CRFProcessor.CRF3DProcessor()
@@ -104,6 +106,7 @@ def perform_3dcrf(input_dir, mask_dir, results_dir, test_feature):
 
     mask2  = np.swapaxes(result, 0, 1)
     print("mask2 shape: " + str(mask2.shape))
+    stat(mask2)
 
     # Write out resultant mask2 as DICOM
     if not os.path.isdir(results_dir):
