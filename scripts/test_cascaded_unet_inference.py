@@ -157,7 +157,9 @@ def to_scale(img, shape=None):
         factor = 255.0/max_ if max_ != 0 else 1
         return (scipy.misc.imresize(img,(height,width),interp="nearest")/factor).astype(IMG_DTYPE)
     elif img.dtype == MASK_DTYPE:
-        return scipy.misc.imresize(img,(height,width),interp="nearest").astype(MASK_DTYPE)
+        max_ = np.max(img)
+        factor = 255.0/max_ if max_ != 0 else 1
+        return (scipy.misc.imresize(img,(height,width),interp="nearest")/factor).astype(MASK_DTYPE)
     else:
         raise TypeError('Error. To scale the image array, its type must be np.uint8 or np.float64 or np.uint16. (' + str(img.dtype) + ')')
 
