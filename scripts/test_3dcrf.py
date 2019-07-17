@@ -242,6 +242,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
 
     return img_slc
 
+# for 3D CRF
 def step3_preprocess_img_slice(img_slc, b, m):
     """
     Preprocesses the image 3d volumes by performing the following :
@@ -279,8 +280,6 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
     # net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
     print("step 1 net constructed")
 
-    #3D CRF mask storage
-    # IMG_DTYPE
     ConstMaskDims = (img_num_rows, img_num_cols, img_num_slices, 2)
     mask_array = np.zeros(ConstMaskDims, dtype=IMG_DTYPE)  # np.float
 
@@ -301,19 +300,25 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
         # take the first dim of 'prob' index 0, second dim of 'prob' index 1, and all of the third dim
         # orig code  (in case of translation problems)
         # pred = net1.forward()['prob'][0,1] > 0.5
-        pred = net1.forward()['prob'][0,1]
+        pred = net1.forward()['prob'][0,1]  # make sure that this still works
 
-        mask_array[..., slice_no, 0] = 1- pred  # prob of background
-        mask_array[..., slice_no, 1] = pred     # prob of foreground
+        mask_bgnd = pred      # prob of foreground
+        mask_fgnd = 1 - pred  # prob of background
 
         print("pred1 mask: "+ str(slice_no))
         print("pred shape, type:" + str(pred.shape) + "," + str(type(pred)))
+        stat(pred)
 
-        #prepare step 1 output mask for saving
+        # prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
         mask1 = mask1.astype(MASK_DTYPE)  # uint16 [0, 1]  was SEG_DTYPE
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
+
+        mask_bgnd = to_scale(mask_bgnd, (num_rows, num_cols))  # (512, 512)
+        mask_fgnd = to_scale(mask_fgnd, (num_rows, num_cols))  # (512, 512)
+        mask_array[..., slice_no, 0] = mask_bgnd
+        mask_array[..., slice_no, 1] = mask_fgnd
 
         write_dicom_mask(mask1, ds_slice, slice_no, results_dir, mask_suffix="_mask1")
     # Free up memory of step1 network
@@ -321,7 +326,6 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
 
 
     # Step 3 3D CRF on step1 results
-    # (img_num_rows, img_num_cols, img_num_slices)
     # img: H, W, D
     img_array = np.zeros(ConstPixelDims, dtype=img.dtype)
     for slice_no in range(0, img_num_slices):
