@@ -311,10 +311,12 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
 
         # prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
-        mask1 = mask1.astype(MASK_DTYPE)  # uint16 [0, 1]  was SEG_DTYPE
+        mask1 = mask1.astype(MASK_DTYPE)  # uint16 [0, 1] was SEG_DTYPE
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
 
+        mask_bgnd = mask_bgnd.astype(IMG_DTYPE)
+        mask_fgnd = mask_fgnd.astype(IMG_DTYPE)
         mask_bgnd = to_scale(mask_bgnd, (num_rows, num_cols))  # (512, 512)
         mask_fgnd = to_scale(mask_fgnd, (num_rows, num_cols))  # (512, 512)
         mask_array[..., slice_no, 0] = mask_bgnd
@@ -376,13 +378,13 @@ if __name__ == '__main__':
     '''
     This script runs step 1 of the Cascaded-FCN using its CT liver model on a test dicom dir.
     '''
-    parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
+    parser = argparse.ArgumentParser(description='step 1 and 3 of Cascaded-FCN / 3D CRF test script')
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     parser.add_argument("-p", dest="step3_output_results_dir", help="The step 3 (3dcrf) output directory to write results to")
     parser.add_argument("-t", "--test_feature", dest="test_feature", help="true or false. Whether to apply the current test feature")
     if len(sys.argv) < 6:
-        print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -p <step3_output_results_dir> -t <true|false>")
+        print("python test_3dcrf.py -i <input_dcm_dir> -o <output_results_dir> -p <step3_output_results_dir> -t <true|false>")
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
