@@ -302,8 +302,8 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
         # pred = net1.forward()['prob'][0,1] > 0.5
         pred = net1.forward()['prob'][0,1]  # make sure that this still works
 
-        mask_bgnd = pred      # prob of foreground
-        mask_fgnd = 1 - pred  # prob of background
+        mask_fgnd = pred      # prob of foreground
+        mask_bgnd = 1 - pred  # prob of background
 
         print("pred1 mask: "+ str(slice_no))
         print("pred shape, type:" + str(pred.shape) + "," + str(type(pred)))
@@ -329,10 +329,12 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
 
     # Step 3 3D CRF on step1 results
     # img: H, W, D
+    # param img: Normalized input as ndarray. (W, H, D), [0, 1]
     img_array = np.zeros(ConstPixelDims, dtype=img.dtype)
     for slice_no in range(0, img_num_slices):
         img_slice = img[..., slice_no]
         # normalize input image to [0.1]
+        # 888 May need to apply other step 1 preproceesing steps except resizing
         img_p = step3_preprocess_img_slice(img_slice, b, m)
         img_array[:, :, slice_no] = img_p
 
@@ -343,7 +345,7 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
     print("crf image shape: " + str(crf_img.shape))
 
     # mask_array : H, W, D, C
-    # Label (W, H, D, C)
+    # param label: Continuous label tensor as ndarray. (W, H, D, L), [0, 1]
     feature_tensor   = np.swapaxes(mask_array, 0, 1)
     print("crf feature tensor shape: " + str(feature_tensor.shape))
     stat(feature_tensor)
@@ -358,6 +360,7 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
     print("step 3 CRF3DProcessor complete.")
 
     # result: Hard labeled result as ndarray. (W, H, D), [0, L], dtype=int16
+    # L must be greater than 1, eg. foreground and background channels. @shivin101 I was doing that as well but tried with 1 - labels as the background and everything works
     (W, H, D) = result.shape
     print("crf result shape: " + str(result.shape))
 
