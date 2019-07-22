@@ -235,6 +235,12 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
 
     # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
     # then convert back to IMG_DTYPE.  Can we convert MIS Auto W/L to work with doubles?
+    # window, level
+    # if window != 1:
+    #     thresh_lo = float(level) - 0.5 - float(window-1) / 2.0
+    #     thresh_hi = float(level) - 0.5 + float(window-1) / 2.0
+    #     thresh_hi += 1.0  # +1 due to > sided test
+
 
     img_slc   = normalize_image(img_slc)  # [0,1]
     img_slc   = to_scale(img_slc, (388,388))
@@ -257,7 +263,10 @@ def step3_preprocess_img_slice(img_slc, b, m):
 
     # must apply m and b first
     img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
+
+    # HU thresholding did not seem to help
     img_slc = normalize_image(img_slc)  # [0,1]
+
     return img_slc
 
 
@@ -334,7 +343,6 @@ def perform_inference(input_dir, results_dir, step3_results_dir, test_feature):
     for slice_no in range(0, img_num_slices):
         img_slice = img[..., slice_no]
         # normalize input image to [0.1]
-        # 888 May need to apply other step 1 preproceesing steps except resizing
         img_p = step3_preprocess_img_slice(img_slice, b, m)
         img_array[:, :, slice_no] = img_p
 
