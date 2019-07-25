@@ -2,7 +2,10 @@
 //bool AutoWindowLevel(double &Window, double &Level, int Frame,
 //    double Intercept=0.0, double Slope=1.0, BOOL HasPadding=FALSE, int PaddingValue=0) ;
 
-namespace std::string
+using namespace std::string
+
+typedef unsigned int UNIT;
+
 
 // assume data is int* (for now)
 void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
