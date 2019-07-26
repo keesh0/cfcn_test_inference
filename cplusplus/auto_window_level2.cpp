@@ -14,6 +14,8 @@ typedef unsigned short USHORT;
 typedef short SHORT;
 typedef unsigned long ULONG;
 
+extern "C" {
+
 // assume data is int* (for now)
 // Pass in original slope and intercept?
 void AutoWindowLevel(int *data, int width, int height,
@@ -151,3 +153,5 @@ void AutoWindowLevel(int *data, int width, int height,
 
 	delete [] cumul_histo;
 }
+
+}  // extern "C"
