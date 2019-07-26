@@ -2,7 +2,12 @@
 //bool AutoWindowLevel(double &Window, double &Level, int Frame,
 //    double Intercept=0.0, double Slope=1.0, BOOL HasPadding=FALSE, int PaddingValue=0) ;
 
-using namespace std::string;
+#include <iostream>
+#include <string> // for string class
+using namespace std;
+
+#include <stdio.h>
+#include <string.h>
 
 typedef unsigned int UINT;
 typedef unsigned short USHORT;
@@ -37,7 +42,7 @@ void AutoWindowLevel(int *data, int width, int height,
 	// of a short (65536) is too small for a 256x256 flat image or
 	// images of larger dimensions
 	cumul_histo = new ULONG[0x10000];  // 65536, big enough to hold all 16-bit values
-	memset(cumul_histo, 0, 0x10000 * sizeof(ULONG));  was sizeof(long)
+	memset(cumul_histo, 0, 0x10000 * sizeof(ULONG));  // was sizeof(long)
 
 	// WJR - 07/30/99
 	//   Convert all values to USHORT for indexing the histogram array
