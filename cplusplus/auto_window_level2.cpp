@@ -2,23 +2,24 @@
 //bool AutoWindowLevel(double &Window, double &Level, int Frame,
 //    double Intercept=0.0, double Slope=1.0, BOOL HasPadding=FALSE, int PaddingValue=0) ;
 
-using namespace std::string
+using namespace std::string;
 
-typedef unsigned int UNIT;
-
+typedef unsigned int UINT;
+typedef unsigned short USHORT;
+typedef short SHORT;
+typedef unsigned long ULONG;
 
 // assume data is int* (for now)
-void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
-    double Intercept, double Slope, bool HasPadding, int PaddingValue, std::String BodyPartExamined)
+// Pass in original slope and intercept?
+void AutoWindowLevel(int *data, int width, int height,
+    double Intercept, double Slope, bool HasPadding, int PaddingValue,
+    double &Window, double &Level)
 {
-	if (m_dataType > AShort)	// Currently can only handle 16 bit data or less.
-		return false;
+	// Currently can only handle 16 bit data or less.
 
-	unsigned long   *cumul_histo;
-	UINT            num_bins,
-					num_pixels,
-					Number;
-	int high, low;
+	unsigned long *cumul_histo = nullptr;
+	UINT num_bins, num_pixels, Number;
+	int high, low;  // was T
 	int MAX_GAP = 1000;
 	int MAX_VAL = -1;
 	int MIN_VAL = -1;
@@ -27,39 +28,16 @@ void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
 	num_bins = 0;
 	Number = 2;
 
-	if (m_pDicomObject)
-	{
-		std::string bodyPartExamined;
-		if (m_pDicomObject->GetValue(0x0018, 0x0015, bodyPartExamined) == ADO_OK)	// BodyPartExamined
-			if (bodyPartExamined.find("SPINE") != std::string::npos) // && ! v->coil_filtered[slice] )
-			{
-				Number = 10;
+    // body part "SPINE" and modlaity "MR" and bits allocated = 16
 
-				std::string modality;
-				if (m_pDicomObject->GetValue(0x0008, 0x0060, modality) == ADO_OK)	// Modality
-				{
-					unsigned short bitsAllocated = 0;
-					if (m_pDicomObject->GetValue(0x0028, 0x0100, bitsAllocated) == ADO_OK)	// BitsAllocated
-					{
-						if ((bitsAllocated == 16) && (modality == "MR"))
-						{
-							UseMaxMin = true;
-							MIN_VAL = -1000;
-							MAX_VAL = 500;
-						}
-					}
-				}
-			}
-	}
-
-	num_pixels = m_width * m_height;  // need to pass in width and height
-	high = low = *data;
+	num_pixels = width * height;  // need to pass in width and height
+	high = low = *data;  // T* data = (T*) GetPixelData(Frame);
 
 	// cumul_histo needs to be a long pointer because the range
 	// of a short (65536) is too small for a 256x256 flat image or
 	// images of larger dimensions
 	cumul_histo = new ULONG[0x10000];  // 65536, big enough to hold all 16-bit values
-	memset(cumul_histo, 0, 0x10000 * sizeof(long));
+	memset(cumul_histo, 0, 0x10000 * sizeof(ULONG));  was sizeof(long)
 
 	// WJR - 07/30/99
 	//   Convert all values to USHORT for indexing the histogram array
@@ -68,11 +46,11 @@ void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
 	for ( UINT i = 0; i < num_pixels; i++)
 	{
 		usValue = (USHORT) *(data + i);
-		if ( HasPadding == FALSE || usValue != usPad )
+		if ( HasPadding == false || usValue != usPad )
 		{
 			if ( UseMaxMin )
 			{
-				if ( *(data + i) < (T) MIN_VAL || *(data + i) > (T) MAX_VAL )
+				if ( *(data + i) < (int) MIN_VAL || *(data + i) > (int) MAX_VAL )  // was cast T
 				{
 					continue;
 				}
@@ -89,11 +67,11 @@ void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
 	}
 
 	// If we're signed, we'll have to offset our index later
-	T negvalue = -1;
-	BOOL Signed = FALSE;
+	int negvalue = -1;  // was T
+	bool Signed = false;
 	if ( negvalue < 0 )
 	{
-		Signed = TRUE;
+		Signed = true;
 	}
 
 	// Instead of testing to Min and Max for all pixels in the image, just
@@ -123,7 +101,7 @@ void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
 					// Big Gap, ignore the other value
 					valid_bins = 0;
 					Bin_num = 0;
-					low = (T) iValue;
+					low = (int) iValue;  // was T
 				}
 				else
 				//else if ( ( ((num_bins - valid_bins) * 100) / num_bins) < 10 )
@@ -135,7 +113,7 @@ void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
 			// Check for the lowest bin
 			if ( valid_bins == 0 )
 			{
-				low = (T) iValue;
+				low = (int) iValue;  // was T
 			}
 
 			// Increment the values
@@ -144,7 +122,7 @@ void AutoWindowLevel(double &Window, double &Level, int *data, int Frame,
 
 			// Make sure to set prev_bin
 			prev_bin = iValue;
-			high = (T) iValue;
+			high = (int) iValue;  // was T
 		}
 
 		// Increment the counter
