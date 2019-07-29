@@ -30,7 +30,7 @@ from matplotlib import pyplot as plt
 plt.set_cmap('gray')
 
 # BEG MIS AWL
-from ctypes import cdll
+from ctypes import *
 lib = cdll.LoadLibrary('./libautowindowlevel.so')
 # END MIS AWL
 
