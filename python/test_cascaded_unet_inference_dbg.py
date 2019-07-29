@@ -200,7 +200,6 @@ def histeq_processor(img):
     img=img/255.0
     return img.reshape(original_shape)
 
-
 def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     """
     Preprocesses the image 3d volumes by performing the following :
@@ -236,7 +235,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
 
     # BEG MIS AWL
     # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
-    # then convert back to IMG_DTYPE.  Can we convert MIS Auto W/L to work with doubles?
+    # 888 convert back to IMG_DTYPE in real code.
     img_slc  = img_slc.astype(MIS_DTYPE)
 
     (rows, cols) = img_slc.shape
@@ -248,7 +247,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     Slope = ctypes.c_double(m)
     Intercept = ctypes.c_double(b)
 
-    c_int_p = ctypes.POINTER(ctypes.c_int)
+    c_int_p = ctypes.POINTER(ctypes.c_int)   # 888 not sure if this ptr type is correct?
     data = img_slc.ctypes.data_as(c_int_p)
 
     Window = ctypes.c_double()
@@ -285,10 +284,10 @@ def perform_inference(input_dir, results_dir, test_feature):
     if not os.path.isdir(results_dir):
         os.mkdir(results_dir)
     # Load network Caffe 1.0.0
-    net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
+    # net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
     # Load network pre Caffe 1.0.0
     # net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
-    print("step 1 net constructed")
+    # print("step 1 net constructed")
     #for slice_no in range(0, num_images):
     for slice_no in range(90, 91):
         img_slice = img[..., slice_no]
@@ -298,7 +297,7 @@ def perform_inference(input_dir, results_dir, test_feature):
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
         img_p = step1_preprocess_img_slice(img_slice, slice_no, b, m, test_feature, results_dir)
-        write_dicom_mask(img_p, ds_slice, slice_no, results_dir)
+        write_dicom_mask(img_p, ds_slice, slice_no, results_dir, mask_suffix="_disp1")  # _mask1
         continue
 
         """ Perform Inference """
