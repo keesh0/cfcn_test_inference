@@ -31,7 +31,7 @@ plt.set_cmap('gray')
 
 # BEG MIS AWL
 import ctypes
-lib = cdll.LoadLibrary('./libautowindowlevel.so')
+lib = ctypes.cdll.LoadLibrary('./libautowindowlevel.so')
 # END MIS AWL
 
 
