@@ -24,8 +24,8 @@ void AutoWindowLevel(int *data, int width, int height,
 {
 	// Currently can only handle 16 bit data or less.
 
-    Window = 1
-    Level = 0
+    Window = 1;
+    Level = 0;
 
     cout << data << " " << width << " " << height << endl;
     cout << Intercept << " " << Slope << " " << HasPadding << " " << PaddingValue << endl;
