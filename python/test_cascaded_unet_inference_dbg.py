@@ -285,10 +285,10 @@ def perform_inference(input_dir, results_dir, test_feature):
     if not os.path.isdir(results_dir):
         os.mkdir(results_dir)
     # Load network Caffe 1.0.0
-    # net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
+    net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
     # Load network pre Caffe 1.0.0
-    # net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
-    # print("step 1 net constructed")
+    net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
+    print("step 1 net constructed")
     #for slice_no in range(0, num_images):
     for slice_no in range(90, 91):
         img_slice = img[..., slice_no]
