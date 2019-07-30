@@ -30,7 +30,7 @@ from matplotlib import pyplot as plt
 plt.set_cmap('gray')
 
 # BEG MIS AWL
-from ctypes import *
+import ctypes
 lib = cdll.LoadLibrary('./libautowindowlevel.so')
 # END MIS AWL
 
@@ -239,6 +239,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     img_slc  = img_slc.astype(MIS_DTYPE)
 
     (rows, cols) = img_slc.shape
+
     width = ctypes.c_int(cols)
     height = ctypes.c_int(rows)
 
