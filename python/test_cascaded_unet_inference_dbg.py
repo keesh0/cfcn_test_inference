@@ -225,47 +225,41 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     # CT body from MIS level=40, width=400  [-160, 240]
     # CT liver from IJ level 80, width=150  [5, 155]
     # CT abd from IJ level=50, width=350 [-125, 225]
-    img_slc[img_slc>1200] = 0
+    # 888 uncomment after MIS AWL testing is complete
+    # img_slc[img_slc>1200] = 0
 
     thresh_lo = -100
     thresh_hi = 400
 
     # Do we need to worry about VOI LUT Sequence (0028,3010) presennce in our CT images as this should get applied early.
-
-    img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
-    print("HU Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
+    # 888 uncomment after MIS AWL testing is complete
+    # img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
+    print("HU Threshold not applied: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
 
     # BEG MIS AWL
     # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
     # 888 convert back to IMG_DTYPE in real code.
     img_slc  = img_slc.astype(MIS_DTYPE)
-
     (rows, cols) = img_slc.shape
-
     width = ctypes.c_int(cols)
     height = ctypes.c_int(rows)
-
     HasPadding = ctypes.c_bool(False)
     PaddingValue = ctypes.c_int(0)
     Slope = ctypes.c_double(m)
     Intercept = ctypes.c_double(b)
-
     c_int_p = ctypes.POINTER(ctypes.c_int)   # 888 not sure if this ptr type is correct?
     data = img_slc.ctypes.data_as(c_int_p)
-
     Window = ctypes.c_double()
     Level = ctypes.c_double()
-
     lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue, ctypes.byref(Window), ctypes.byref(Level))
     win = Window.value
     lev = Level.value
     print("Auto W/L window = " + str(win) + ", level = " + str(lev))
-
     if win != 1:
         thresh_lo = float(lev) - 0.5 - float(win-1) / 2.0
         thresh_hi = float(lev) - 0.5 + float(win-1) / 2.0
         thresh_hi += 1.0  # +1 due to > sided test
-        img_slc   = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
+        img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
         print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
     # END MID AWL
 
