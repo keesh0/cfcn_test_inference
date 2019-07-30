@@ -141,8 +141,9 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix
     ds.ImageType = image_type_val_str2
 
     # display components
-    ds.WindowCenter = [0]   # 0028,1050  Window Center
-    ds.WindowWidth = [1]  # 0028,1051  Window Width
+    #  88 uncomment for masks tests
+    # ds.WindowCenter = [0]   # 0028,1050  Window Center
+    # ds.WindowWidth = [1]  # 0028,1051  Window Width
     ds.RescaleIntercept = 0  # 0028,1052  Rescale Intercept: 0
     ds.RescaleSlope = 1 # 0028,1053  Rescale Slope: 1
 
@@ -232,6 +233,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     # Do we need to worry about VOI LUT Sequence (0028,3010) presennce in our CT images as this should get applied early.
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
+    print("HU Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
 
     # BEG MIS AWL
     # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
@@ -264,6 +266,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
         thresh_hi = float(lev) - 0.5 + float(win-1) / 2.0
         thresh_hi += 1.0  # +1 due to > sided test
         img_slc   = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
+        print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
     # END MID AWL
 
     #img_slc   = normalize_image(img_slc)  # [0,1]
@@ -285,9 +288,9 @@ def perform_inference(input_dir, results_dir, test_feature):
     if not os.path.isdir(results_dir):
         os.mkdir(results_dir)
     # Load network Caffe 1.0.0
-    net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
+    # net1 = caffe.Net(network_file=STEP1_DEPLOY_PROTOTXT, weights=STEP1_MODEL_WEIGHTS, phase=caffe.TEST)
     # Load network pre Caffe 1.0.0
-    net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
+    # net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
     print("step 1 net constructed")
     #for slice_no in range(0, num_images):
     for slice_no in range(90, 91):
@@ -324,7 +327,7 @@ def perform_inference(input_dir, results_dir, test_feature):
 
         write_dicom_mask(mask1, ds_slice, slice_no, results_dir, mask_suffix="_mask1")
     # Free up memory of step1 network
-    del net1  #needed ?
+    # del net1  #needed ?
 
 
 if __name__ == '__main__':

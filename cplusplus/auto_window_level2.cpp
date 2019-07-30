@@ -24,6 +24,12 @@ void AutoWindowLevel(int *data, int width, int height,
 {
 	// Currently can only handle 16 bit data or less.
 
+    Window = 1
+    Level = 0
+
+    cout << data << " " << width << " " << height << endl;
+    cout << Intercept << " " << Slope << " " << HasPadding << " " << PaddingValue << endl;
+
 	unsigned long *cumul_histo = nullptr;
 	UINT num_bins, num_pixels, Number;
 	int high, low;  // was T
@@ -79,6 +85,7 @@ void AutoWindowLevel(int *data, int width, int height,
 	if ( negvalue < 0 )
 	{
 		Signed = true;
+		cout << "Signed" << endl;
 	}
 
 	// Instead of testing to Min and Max for all pixels in the image, just
@@ -139,17 +146,20 @@ void AutoWindowLevel(int *data, int width, int height,
 	if ( valid_bins < 1 )
 	{
 		valid_bins = 1;  // This avoids a divide by zero error
+	    cout << "valid_bins = 1" << endl;
 	}
-
 
 	// Try to brighten up the images a bit...
 	UINT LevelAdjust = 0;	//(high - low) / 20;
 
+    // 888 Check this
 	Level = (int((Bin_num/valid_bins) * Slope) + Intercept) - LevelAdjust;
 	Window = int((high - low) * Slope);
 
 	if ( Window <= 0 )
 		Window = high - low;
+
+    cout << Level << " " << Window << endl;
 
 	delete [] cumul_histo;
 }
