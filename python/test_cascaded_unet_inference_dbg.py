@@ -249,8 +249,8 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     PaddingValue = ctypes.c_int(0)
     Slope = ctypes.c_double(m)
     Intercept = ctypes.c_double(b)
-    c_int_p = ctypes.POINTER(ctypes.c_int)   # 888 not sure if this ptr type is correct?
-    data = img_slc.ctypes.data_as(c_int_p)
+    c_short_p = ctypes.POINTER(ctypes.c_short)   # 888 not sure if this ptr type is correct?
+    data = img_slc.ctypes.data_as(c_short_p)
     Window = ctypes.c_double()
     Level = ctypes.c_double()
     lib.AutoWindowLevel(data, width, height, Intercept, Slope, HasPadding, PaddingValue, ctypes.byref(Window), ctypes.byref(Level))
