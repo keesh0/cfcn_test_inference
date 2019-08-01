@@ -292,6 +292,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
     parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
+    #  888 can nuke -t after updating test0 dicom files under WIDNOZE command prompt:  ren *.* *.dcm
     parser.add_argument("-t", "--test_feature", dest="test_feature", help="true or false. Whether to apply the current test feature")
     if len(sys.argv) < 5:
         print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir> -t <true|false>")
