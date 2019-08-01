@@ -18,7 +18,7 @@ extern "C" {
 
 // assume data is int* (for now)
 // Pass in original slope and intercept?
-void AutoWindowLevel(int *data, int width, int height,
+void AutoWindowLevel(short *data, int width, int height,
     double Intercept, double Slope, bool HasPadding, int PaddingValue,
     double &Window, double &Level)
 {
@@ -32,7 +32,7 @@ void AutoWindowLevel(int *data, int width, int height,
 
 	unsigned long *cumul_histo = nullptr;
 	UINT num_bins, num_pixels, Number;
-	int high, low;  // was T
+	short high, low;  // was T
 	int MAX_GAP = 1000;
 	int MAX_VAL = -1;
 	int MIN_VAL = -1;
@@ -63,7 +63,7 @@ void AutoWindowLevel(int *data, int width, int height,
 		{
 			if ( UseMaxMin )
 			{
-				if ( *(data + i) < (int) MIN_VAL || *(data + i) > (int) MAX_VAL )  // was cast T
+				if ( *(data + i) < (short) MIN_VAL || *(data + i) > (short) MAX_VAL )  // was cast T
 				{
 					continue;
 				}
@@ -80,7 +80,7 @@ void AutoWindowLevel(int *data, int width, int height,
 	}
 
 	// If we're signed, we'll have to offset our index later
-	int negvalue = -1;  // was T
+	short negvalue = -1;  // was T
 	bool Signed = false;
 	if ( negvalue < 0 )
 	{
@@ -115,7 +115,7 @@ void AutoWindowLevel(int *data, int width, int height,
 					// Big Gap, ignore the other value
 					valid_bins = 0;
 					Bin_num = 0;
-					low = (int) iValue;  // was T
+					low = (shot) iValue;  // was T
 				}
 				else
 				//else if ( ( ((num_bins - valid_bins) * 100) / num_bins) < 10 )
@@ -127,7 +127,7 @@ void AutoWindowLevel(int *data, int width, int height,
 			// Check for the lowest bin
 			if ( valid_bins == 0 )
 			{
-				low = (int) iValue;  // was T
+				low = (short) iValue;  // was T
 			}
 
 			// Increment the values
@@ -136,7 +136,7 @@ void AutoWindowLevel(int *data, int width, int height,
 
 			// Make sure to set prev_bin
 			prev_bin = iValue;
-			high = (int) iValue;  // was T
+			high = (short) iValue;  // was T
 		}
 
 		// Increment the counter

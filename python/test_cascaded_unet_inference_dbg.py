@@ -41,7 +41,7 @@ STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
 IMG_DTYPE = np.float
 SEG_DTYPE = np.uint8
 MASK_DTYPE = np.uint16
-MIS_DTYPE = np.int16
+MIS_DTYPE = np.int16  # Integer (-32768 to 32767) C signed short
 
 def main(inpArgs):
     try:
