@@ -108,7 +108,7 @@ def read_dicom_series(directory, filepattern = "image_*"):
 
     return ArrayDicom, Arrayds, len(lstFilesDCM), b, m
 
-def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix, filepattern = ".dcm"):
+def write_dicom_mask(img_slice, ds_slice, slice_no, window, level, outputdirectory, mask_suffix, filepattern = ".dcm"):
     series_number = ds_slice[0x0020, 0x0011].value
     base_fname = str(slice_no).zfill(6)
     filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + mask_suffix + filepattern
@@ -141,9 +141,9 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix
     ds.ImageType = image_type_val_str2
 
     # display components
-    #  88 uncomment for masks tests
-    # ds.WindowCenter = [0]   # 0028,1050  Window Center
-    # ds.WindowWidth = [1]  # 0028,1051  Window Width
+    #  888 window center = 0, window width = 1 for mask writing
+    ds.WindowCenter = [level]   # 0028,1050  Window Center
+    ds.WindowWidth = [window]  # 0028,1051  Window Width
     ds.RescaleIntercept = 0  # 0028,1052  Rescale Intercept: 0
     ds.RescaleSlope = 1 # 0028,1053  Rescale Slope: 1
 
@@ -216,10 +216,12 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     Return:
         Preprocessed image slice
     """
-    img_slc   = img_slc.astype(IMG_DTYPE)
+    img_slc = img_slc.astype(IMG_DTYPE)
+    stat(img_slc)
 
     # must apply m and b first
     img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
+    stat(img_slc)
 
     # Should we increase the threshold range (if we are missing liver)?
     # CT body from MIS level=40, width=400  [-160, 240]
@@ -261,13 +263,14 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
         thresh_hi += 1.0  # +1 due to > sided test
         img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
         print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
+        stat(img_slc)
     # END MID AWL
 
     #img_slc   = normalize_image(img_slc)  # [0,1]
     #img_slc   = to_scale(img_slc, (388,388))
     #img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
 
-    return img_slc
+    return img_slc, win, lev
 
 
 def perform_inference(input_dir, results_dir, test_feature):
@@ -294,8 +297,8 @@ def perform_inference(input_dir, results_dir, test_feature):
 
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
-        img_p = step1_preprocess_img_slice(img_slice, slice_no, b, m, test_feature, results_dir)
-        write_dicom_mask(img_p, ds_slice, slice_no, results_dir, mask_suffix="_disp1")  # _mask1
+        img_p, window, level = step1_preprocess_img_slice(img_slice, slice_no, b, m, test_feature, results_dir)
+        write_dicom_mask(img_p, ds_slice, slice_no, window, level, results_dir, mask_suffix="_disp1")  # _mask1
         continue
 
         """ Perform Inference """
