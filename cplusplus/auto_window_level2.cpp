@@ -115,7 +115,7 @@ void AutoWindowLevel(short *data, int width, int height,
 					// Big Gap, ignore the other value
 					valid_bins = 0;
 					Bin_num = 0;
-					low = (shot) iValue;  // was T
+					low = (short) iValue;  // was T
 				}
 				else
 				//else if ( ( ((num_bins - valid_bins) * 100) / num_bins) < 10 )
