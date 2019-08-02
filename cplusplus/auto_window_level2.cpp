@@ -24,6 +24,10 @@ void AutoWindowLevel(short *data, int width, int height,
 {
 	// Currently can only handle 16 bit data or less.
 
+    # BEG TMP CODE
+    cout << data[511] << endl; # 1st row, last column = -999
+    # END TMP CODE
+
     Window = 1;
     Level = 0;
 

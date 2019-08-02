@@ -127,7 +127,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, window, level, outputdirecto
     (rows, cols) = img_slice.shape
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
-    ds.PixelRepresentation = 0
+    ds.PixelRepresentation = 1  #  888 0 for mask, 1=MIS AWL image
     ds.HighBit = 15
     ds.BitsStored = 16
     ds.BitsAllocated = 16
@@ -241,8 +241,13 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, test_feature, results_dir):
     # BEG MIS AWL
     # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
     # 888 convert back to IMG_DTYPE in real code.
-    img_slc  = img_slc.astype(MIS_DTYPE)
+    img_slc  = img_slc.astype(MIS_DTYPE)  # np.int16
     (rows, cols) = img_slc.shape
+
+    # BEG TMP CODE
+    img_slc[0, 511] = -999  # 1st row, last column
+    # END TMP CODE
+
     width = ctypes.c_int(cols)
     height = ctypes.c_int(rows)
     HasPadding = ctypes.c_bool(False)
@@ -298,6 +303,7 @@ def perform_inference(input_dir, results_dir, test_feature):
         # Prepare a test slice
         # May have to flip left to right (and change assumptions like HU thresholds)
         img_p, window, level = step1_preprocess_img_slice(img_slice, slice_no, b, m, test_feature, results_dir)
+
         write_dicom_mask(img_p, ds_slice, slice_no, window, level, results_dir, mask_suffix="_disp1")  # _mask1
         continue
 
