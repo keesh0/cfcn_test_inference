@@ -239,11 +239,6 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
     # 888 convert back to IMG_DTYPE in real code.
     img_slc  = img_slc.astype(MIS_DTYPE)  # np.int16
     (rows, cols) = img_slc.shape
-
-    # BEG TMP CODE
-    img_slc[0, 511] = -999  # 1st row, last column
-    # END TMP CODE
-
     width = ctypes.c_int(cols)
     height = ctypes.c_int(rows)
     HasPadding = ctypes.c_bool(False)
