@@ -30,8 +30,8 @@ from matplotlib import pyplot as plt
 plt.set_cmap('gray')
 
 # BEG MIS AWL
-import ctypes
-lib = ctypes.cdll.LoadLibrary('./libautowindowlevel.so')
+# import ctypes
+# lib = ctypes.cdll.LoadLibrary('./libautowindowlevel.so')
 # END MIS AWL
 
 
@@ -41,7 +41,10 @@ STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
 IMG_DTYPE = np.float
 SEG_DTYPE = np.uint8
 MASK_DTYPE = np.uint16
-MIS_DTYPE = np.int16  # Integer (-32768 to 32767) C signed short
+
+# BEG MIS AWL
+# MIS_DTYPE = np.int16  # Integer (-32768 to 32767) C signed short
+# END MIS AWL
 
 def main(inpArgs):
     try:
@@ -123,7 +126,7 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, window, level, outputdirecto
     (rows, cols) = img_slice.shape
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
-    ds.PixelRepresentation = 1  #  888 0 for mask, 1=MIS AWL image
+    ds.PixelRepresentation = 0  # 0 for mask, 1=MIS AWL image
     ds.HighBit = 15
     ds.BitsStored = 16
     ds.BitsAllocated = 16
@@ -137,9 +140,8 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, window, level, outputdirecto
     ds.ImageType = image_type_val_str2
 
     # display components
-    #  888 window center = 0, window width = 1 for mask writing
-    ds.WindowCenter = [level]   # 0028,1050  Window Center
-    ds.WindowWidth = [window]  # 0028,1051  Window Width
+    ds.WindowCenter = [0]   # 0028,1050  Window Center
+    ds.WindowWidth = [1]  # 0028,1051  Window Width
     ds.RescaleIntercept = 0  # 0028,1052  Rescale Intercept: 0
     ds.RescaleSlope = 1 # 0028,1053  Rescale Slope: 1
 
@@ -223,20 +225,19 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
     # CT body from MIS level=40, width=400  [-160, 240]
     # CT liver from IJ level 80, width=150  [5, 155]
     # CT abd from IJ level=50, width=350 [-125, 225]
-    # 888 uncomment after MIS AWL testing is complete
-    # img_slc[img_slc>1200] = 0
+    img_slc[img_slc>1200] = 0
 
     thresh_lo = -100
     thresh_hi = 400
 
     # Do we need to worry about VOI LUT Sequence (0028,3010) presennce in our CT images as this should get applied early.
-    # 888 uncomment after MIS AWL testing is complete
-    # img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
-    print("HU Threshold not applied: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
+
+    img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
+    print("HU Threshold applied: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
 
     # BEG MIS AWL
     # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
-    # 888 convert back to IMG_DTYPE in real code.
+    """
     img_slc  = img_slc.astype(MIS_DTYPE)  # np.int16
     (rows, cols) = img_slc.shape
     width = ctypes.c_int(cols)
@@ -245,7 +246,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
     PaddingValue = ctypes.c_int(0)
     Slope = ctypes.c_double(m)
     Intercept = ctypes.c_double(b)
-    c_short_p = ctypes.POINTER(ctypes.c_short)   # 888 not sure if this ptr type is correct?
+    c_short_p = ctypes.POINTER(ctypes.c_short)
     data = img_slc.ctypes.data_as(c_short_p)
     Window = ctypes.c_double()
     Level = ctypes.c_double()
@@ -260,11 +261,12 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
         img_slc = np.clip(img_slc, int(thresh_lo), int(thresh_hi))
         print("MIS AWL Threshold: [" + str(thresh_lo) + "," + str(thresh_hi) + "]")
         stat(img_slc)
+    """
     # END MID AWL
 
-    #img_slc   = normalize_image(img_slc)  # [0,1]
-    #img_slc   = to_scale(img_slc, (388,388))
-    #img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
+    img_slc   = normalize_image(img_slc)  # [0,1]
+    img_slc   = to_scale(img_slc, (388,388))
+    img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
 
     return img_slc, win, lev
 
