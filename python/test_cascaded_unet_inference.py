@@ -219,15 +219,6 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
 
     img_slc   = np.clip(img_slc, thresh_lo, thresh_hi)
 
-    # If we apply auto WL convert back to np 16 bit (signed/unsigned) based on image data type read in (make sure that we are still in the 16-bit range after b/m)
-    # then convert back to IMG_DTYPE.  Can we convert MIS Auto W/L to work with doubles?
-    # window, level
-    # if window != 1:
-    #     thresh_lo = float(level) - 0.5 - float(window-1) / 2.0
-    #     thresh_hi = float(level) - 0.5 + float(window-1) / 2.0
-    #     thresh_hi += 1.0  # +1 due to > sided test
-
-
     img_slc   = normalize_image(img_slc)  # [0,1]
     img_slc   = to_scale(img_slc, (388,388))
     img_slc   = np.pad(img_slc,((92,92),(92,92)),mode='reflect')
