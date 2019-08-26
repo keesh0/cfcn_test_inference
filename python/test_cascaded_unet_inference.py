@@ -54,7 +54,7 @@ def main(inpArgs):
         caffe.set_mode_gpu()
         caffe.set_device(0)  #needed?
 
-        perform_inference(os.path.abspath(inpArgs.input_dicom_dir), os.path.abspath(inpArgs.output_results_dir))
+        perform_inference(os.path.abspath(inpArgs.input_dir_file), os.path.abspath(inpArgs.output_results_dir))
 
         sys.exit(0)
     except IOError as ioex:
@@ -190,8 +190,8 @@ def write_nifti_mask(img_reorient, axcodes, mask_data, outputdirectory, base_fna
 # returns false for a probable NIfti file and true for a possible DICOM dir/file
 def test_load_as_dicom(path):
     if os.path.isfile(path) and Path(path).suffix == ".nii":
-        return false
-    return true
+        return False
+    return True
 
 def get_nifti_slice(proxy_img, slice_no):
     return proxy_img.dataobj[..., slice_no, 0]
@@ -290,10 +290,16 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
     return img_slc
 
 # 888 LEFT OFF HERE
-def perform_inference(input_dir, results_dir):
+def perform_inference(input_dir_file, results_dir):
+
     """ Read Test Data """
-    dcm_pattern = "*.dcm"
-    img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern=dcm_pattern)
+    load_as_dicom = test_load_as_dicom(input_dir_file)
+    if load_as_dicom:
+        input_dir = input_dir_file
+        dcm_pattern = "*.dcm"
+        img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern=dcm_pattern)
+    else:
+        pass
 
     # process an image every every x slices
     if not os.path.isdir(results_dir):
@@ -338,7 +344,7 @@ if __name__ == '__main__':
     This script runs step 1 of the Cascaded-FCN using its CT liver model on a test dicom dir.
     '''
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
-    parser.add_argument("-i", dest="input_dicom_dir", help="The input directory of dicom files to read test images from or the complete path to a NIfti1 format file")
+    parser.add_argument("-i", dest="input_dir_file", help="The input directory of dicom files to read test images from or the complete path to a NIfti1 format test file")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     if len(sys.argv) < 4:
         print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir>")
