@@ -4,6 +4,7 @@
 # ref https://github.com/IBBM/Cascaded-FCN
 import os
 import sys
+from pathlib import Path
 import wget
 
 # keesh added to replace !wget
@@ -12,12 +13,16 @@ import argparse  # keesh added to add options
 import caffe  # which version to build?
 
 import numpy as np
+from numpy import zeros, newaxis
 import scipy
 import scipy.misc
 
 import dicom
 from dicom.dataset import Dataset
 from dicom.dataset import FileDataset
+import nibabel as nib
+import nibabel.orientations as orientations
+
 import datetime
 import time
 import platform
@@ -133,6 +138,65 @@ def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix
 
     ds.save_as(filename)
 
+def read_nifti_series(filename):
+    proxy_img = nib.load(filename)
+    # less efficent get image data into memory all at once
+    # image_data = proxy_img.get_fdata()
+
+    hdr = proxy_img.header
+    (num_rows, num_cols, num_images, _) = hdr.get_data_shape()  # not sure of this order
+    (m, b) = hdr.get_slope_inter()
+    axcodes = nib.aff2axcodes(proxy_img.affine)
+    if (axcodes != ('R', 'A', 'S')) and (axcodes != ('L', 'A', 'S')):
+        print("Input NIfti series is in unsupported orientation.  Please convert to RAS or LAS orientation:" + filename)
+        sys.exit(1)
+
+    # specifiy LPS for DICOM
+    codes = ('P', 'L', 'S') # nifti [y-axis, x-axis, ...], Can we specify ('L', 'P', 'S') and then flip the Y-axis?
+    labels = (('R','L'),('A','P'),('I','S'))
+    orients = orientations.axcodes2ornt(codes, labels)
+    img_reorient = proxy_img.as_reoriented(orients)
+    hdr = img_reorient.header
+    # We reset m and b here ourselves for downstream rescale/slope
+    b = 0
+    m = 1
+    return img_reorient, hdr, num_images, b, m, axcodes
+
+# img_reorient is the orig input NIFTI image in DICOM LPS
+def write_nifti_mask(img_reorient, axcodes, mask_data, outputdirectory, base_fname, filepattern = ".nii"):
+    # We only currently support NIfti LAS and RAS orientations
+    # TODO--  To support more NIfti orientations add more key/values to nifti_in_codes_labels
+    nifti_in_codes_labels =	{
+        ('L', 'A', 'S'): (('P','A'),('R','L'),('I','S')),
+        ('R', 'A', 'S'): (('P','A'),('L','R'),('I','S'))
+    }
+    filename = outputdirectory + os.path.sep + base_fname + "_mask1" + filepattern
+    new_header = header = img_reorient.header.copy()
+    new_header.set_slope_inter(1, 0)  # no scaling
+    new_header['cal_min'] = np.min(mask_data)
+    new_header['cal_max'] = np.max(mask_data)
+    new_header['bitpix'] = 16
+    new_header['descrip'] = "NIfti mask volume from Caffe 1.0"
+
+    mask2 = np.zeros(img_reorient.shape, np.uint16)
+    mask2[..., 0] = mask_data  # Add a 4th dim for Nifti, not sure if last dim is number of channels?
+    nifti_mask_img = nib.nifti1.Nifti1Image(mask2, img_reorient.affine, header=new_header)
+
+    # Need to xform numpy from supposed DICOM LPS to NIFTI original orientation (i.e. LAS, RAS, etc.)
+    orients = orientations.axcodes2ornt(axcodes, nifti_in_codes_labels[axcodes])
+    mask_reorient = nifti_mask_img.as_reoriented(orients)
+    nib.save(mask_reorient, filename)
+
+# returns false for a probable NIfti file and true for a possible DICOM dir/file
+def test_load_as_dicom(path):
+    if os.path.isfile(path) and Path(path).suffix == ".nii":
+        return false
+    return true
+
+def get_nifti_slice(proxy_img, slice_no):
+    return proxy_img.dataobj[..., slice_no, 0]
+
+
 """ Image Stats / Display"""
 def stat(array):
     print('min: ' + str(np.min(array)) + ' max: ' + str(np.max(array)) + ' median: ' + str(np.median(array)) + ' avg: ' + str(np.mean(array)))
@@ -225,7 +289,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
 
     return img_slc
 
-
+# 888 LEFT OFF HERE
 def perform_inference(input_dir, results_dir):
     """ Read Test Data """
     dcm_pattern = "*.dcm"
@@ -274,7 +338,7 @@ if __name__ == '__main__':
     This script runs step 1 of the Cascaded-FCN using its CT liver model on a test dicom dir.
     '''
     parser = argparse.ArgumentParser(description='step 1 of Cascaded-FCN test script')
-    parser.add_argument("-i", dest="input_dicom_dir", help="The input dicom directory to read test images from")
+    parser.add_argument("-i", dest="input_dicom_dir", help="The input directory of dicom files to read test images from or the complete path to a NIfti1 format file")
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     if len(sys.argv) < 4:
         print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir>")
