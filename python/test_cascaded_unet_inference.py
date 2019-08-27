@@ -1,5 +1,6 @@
-# Python 2.7.6 test script to test the following Caffe model on our CT liver images
+# Python 3.x test script to test the following Caffe 1.0.0 model on CT liver images
 # Translated from cascaded_unet_inference.ipynb to test CD'or 3.0 liver segmentation
+# I live under https://github.com/keesh0/cfcn_test_inference
 # ref https://modelzoo.co/model/cascaded-fully-convolutional-networks-for-biomedical
 # ref https://github.com/IBBM/Cascaded-FCN
 import os
@@ -7,25 +8,18 @@ import sys
 from pathlib import Path
 import wget
 
-# keesh added to replace !wget
-import argparse  # keesh added to add options
+import argparse
 
-import caffe  # which version to build?
+import caffe
 
 import numpy as np
-from numpy import zeros, newaxis
 import scipy
 import scipy.misc
 
 import dicom
-from dicom.dataset import Dataset
 from dicom.dataset import FileDataset
 import nibabel as nib
 import nibabel.orientations as orientations
-
-import datetime
-import time
-import platform
 
 import natsort
 import glob
@@ -229,29 +223,9 @@ def normalize_image(img):
     min_, max_ = float(np.min(img)), float(np.max(img))
     return (img - min_) / (max_ - min_)
 
-def byte_normalize_image(img):
-    """ Normalize image values to [0,255] """
-    min_, max_ = float(np.min(img)), float(np.max(img))
-    return (255.0 * (img - min_) / (max_ - min_))
-
 def normalize_image_using_rescale_slope_intercept(img, m, b):
     """ Normalize image values to y = mx + b """
     return ((m * img) + b)
-
-def histeq_processor(img):
-    """Histogram equalization"""
-    nbr_bins=256
-    #get image histogram
-    #imhist,bins = np.histogram(img.flatten(),nbr_bins,normed=True)
-    imhist, bins = np.histogram(img.flatten(),nbr_bins)  # keesh updated due to warning Deprecated since version 1.6.0.
-    cdf = imhist.cumsum() #cumulative distribution function
-    cdf = 255 * cdf / cdf[-1] #normalize
-    #use linear interpolation of cdf to find new pixel values
-    original_shape = img.shape
-    img = np.interp(img.flatten(),bins[:-1],cdf)
-    img=img/255.0
-    return img.reshape(original_shape)
-
 
 def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
     """
@@ -330,7 +304,7 @@ def perform_inference(input_dir_file, results_dir):
 
         #prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
-        mask1 = mask1.astype(MASK_DTYPE)  # uint16 [0, 1]  was SEG_DTYPE
+        mask1 = mask1.astype(MASK_DTYPE)  # uint16 [0, 1]
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
 
