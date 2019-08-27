@@ -33,7 +33,7 @@ import glob
 #globals for now
 STEP1_DEPLOY_PROTOTXT = "../models/cascadedfcn/step1/step1_deploy.prototxt"
 STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
-IMG_DTYPE = np.float
+IMG_DTYPE = np.float  # same as float64
 SEG_DTYPE = np.uint8
 MASK_DTYPE = np.uint16
 
@@ -67,7 +67,7 @@ def main(inpArgs):
 
 
 """ Image I/O  """
-def read_dicom_series(directory, filepattern = "image_*"):
+def read_dicom_series(directory, filepattern = "*.dcm"):
     """ Reads a DICOM Series files in the given directory.
     Only filesnames matching filepattern will be considered"""
     if not os.path.exists(directory) or not os.path.isdir(directory):
@@ -98,7 +98,8 @@ def read_dicom_series(directory, filepattern = "image_*"):
 
     return ArrayDicom, Arrayds, len(lstFilesDCM), b, m
 
-def write_dicom_mask(img_slice, ds_slice, slice_no, outputdirectory, mask_suffix, filepattern = ".dcm"):
+def write_dicom_mask(img_slice, ds, slice_no, outputdirectory, mask_suffix, filepattern = ".dcm"):
+    ds_slice = ds[slice_no]
     series_number = ds_slice[0x0020, 0x0011].value
     base_fname = str(slice_no).zfill(6)
     filename = outputdirectory + os.path.sep + base_fname + "_" + str(series_number) + mask_suffix + filepattern
@@ -178,7 +179,7 @@ def write_nifti_mask(img_reorient, axcodes, mask_data, outputdirectory, base_fna
     new_header['bitpix'] = 16
     new_header['descrip'] = "NIfti mask volume from Caffe 1.0"
 
-    mask2 = np.zeros(img_reorient.shape, np.uint16)
+    mask2 = np.zeros(img_reorient.shape, MASK_DTYPE)
     mask2[..., 0] = mask_data  # Add a 4th dim for Nifti, not sure if last dim is number of channels?
     nifti_mask_img = nib.nifti1.Nifti1Image(mask2, img_reorient.affine, header=new_header)
 
@@ -193,9 +194,11 @@ def test_load_as_dicom(path):
         return False
     return True
 
-def get_nifti_slice(proxy_img, slice_no):
-    return proxy_img.dataobj[..., slice_no, 0]
-
+def get_image_slice(img, slice_no, load_as_dicom):
+    if load_as_dicom:
+        return img[..., slice_no]
+    else:
+        return img.dataobj[..., slice_no, 0]
 
 """ Image Stats / Display"""
 def stat(array):
@@ -267,7 +270,7 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
     """
     img_slc   = img_slc.astype(IMG_DTYPE)
 
-    # must apply m and b first
+    # must apply m and b first for DICOM, for NIFTI its always 1,0
     img_slc = normalize_image_using_rescale_slope_intercept(img_slc, m, b)
 
     # Should we increase the threshold range (if we are missing liver)?
@@ -289,17 +292,14 @@ def step1_preprocess_img_slice(img_slc, slice, b, m, results_dir):
 
     return img_slc
 
-# 888 LEFT OFF HERE
-def perform_inference(input_dir_file, results_dir):
 
+def perform_inference(input_dir_file, results_dir):
     """ Read Test Data """
     load_as_dicom = test_load_as_dicom(input_dir_file)
     if load_as_dicom:
-        input_dir = input_dir_file
-        dcm_pattern = "*.dcm"
-        img, ds, num_images, b, m = read_dicom_series(input_dir + os.path.sep, filepattern=dcm_pattern)
+        img, ds, num_images, b, m = read_dicom_series(input_dir_file + os.path.sep)
     else:
-        pass
+        img, hdr, num_images, b, m, axcodes = read_nifti_series(input_dir_file)
 
     # process an image every every x slices
     if not os.path.isdir(results_dir):
@@ -309,9 +309,9 @@ def perform_inference(input_dir_file, results_dir):
     # Load network pre Caffe 1.0.0
     # net1 = caffe.Net(STEP1_DEPLOY_PROTOTXT, STEP1_MODEL_WEIGHTS, caffe.TEST)
     print("step 1 net constructed")
+    mask_data_array = None  # NIFTI only
     for slice_no in range(0, num_images):
-        img_slice = img[..., slice_no]
-        ds_slice = ds[slice_no]
+        img_slice = get_image_slice(img, slice_no, load_as_dicom)
         (num_rows, num_cols) = img_slice.shape
 
         # Prepare a test slice
@@ -334,9 +334,21 @@ def perform_inference(input_dir_file, results_dir):
         #resize using nearest to preserve mask shape
         mask1 = to_scale(mask1, (num_rows, num_cols))  # (512, 512)
 
-        write_dicom_mask(mask1, ds_slice, slice_no, results_dir, mask_suffix="_mask1")
+        if load_as_dicom:
+            write_dicom_mask(mask1, ds, slice_no, results_dir, mask_suffix="_mask1")
+        else:
+            # NIFTI create and fill mask array
+            if slice_no == 0:
+                ConstMaskDims = (num_rows, num_cols, num_images)
+                mask_data_array = np.zeros(ConstMaskDims, dtype=MASK_DTYPE)
+            mask_data_array[..., slice_no] = mask1
+
     # Free up memory of step1 network
     del net1  #needed ?
+
+    if not load_as_dicom:
+        nifti_base = Path(input_dir_file).resolve().stem
+        write_nifti_mask(img, axcodes, mask_data_array, results_dir, nifti_base)
 
 
 if __name__ == '__main__':
