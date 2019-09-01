@@ -25,8 +25,11 @@ import natsort
 import glob
 
 #globals for now
-STEP1_DEPLOY_PROTOTXT = "../models/cascadedfcn/step1/step1_deploy.prototxt"
-STEP1_MODEL_WEIGHTS   = "../models/cascadedfcn/step1/step1_weights.caffemodel"
+os.path.realpath(__file__)
+SCRIPT_DIRECTORY = os.path.realpath(__file__)
+PROJECT_DIRECTORY = os.path.dirname(SCRIPT_DIRECTORY)
+STEP1_DEPLOY_PROTOTXT = PROJECT_DIRECTORY + os.path.sep + "models" + os.path.sep + "cascadedfcn" + os.path.sep + "step1" + os.path.sep + "step1_deploy.prototxt"
+STEP1_MODEL_WEIGHTS   = PROJECT_DIRECTORY + os.path.sep + "models" + os.path.sep + "cascadedfcn" + os.path.sep + "step1" + os.path.sep + "step1_weights.caffemodel"
 IMG_DTYPE = np.float  # same as float64
 SEG_DTYPE = np.uint8
 MASK_DTYPE = np.uint16
@@ -35,7 +38,7 @@ def main(inpArgs):
     try:
         # Get model weights (step1 models)
         # ref https://stackoverflow.com/questions/24346872/python-equivalent-of-a-given-wget-command
-        output_file1 = "../models/cascadedfcn/step1/step1_weights.caffemodel"
+        output_file1 = STEP1_MODEL_WEIGHTS
         if os.path.isfile(output_file1) == False:
             url1 = "https://www.dropbox.com/s/aoykiiuu669igxa/step1_weights.caffemodel?dl=1"
             print("Getting model 1 weights: " + output_file1)
