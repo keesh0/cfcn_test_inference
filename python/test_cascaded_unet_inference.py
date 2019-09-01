@@ -25,7 +25,6 @@ import natsort
 import glob
 
 #globals for now
-os.path.realpath(__file__)
 SCRIPT_DIRECTORY = os.path.realpath(__file__)
 PROJECT_DIRECTORY = os.path.dirname(SCRIPT_DIRECTORY)
 STEP1_DEPLOY_PROTOTXT = PROJECT_DIRECTORY + os.path.sep + "models" + os.path.sep + "cascadedfcn" + os.path.sep + "step1" + os.path.sep + "step1_deploy.prototxt"
