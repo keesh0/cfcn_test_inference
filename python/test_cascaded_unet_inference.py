@@ -149,8 +149,9 @@ def read_nifti_series(filename):
         sys.exit(1)
 
     # specifiy LPS for DICOM
-    codes = ('P', 'L', 'S') # nifti [y-axis, x-axis, ...], Can we specify ('L', 'P', 'S') and then flip the Y-axis?
-    labels = (('R','L'),('A','P'),('I','S'))
+    # https://nipy.org/nibabel/dicom/dicom_orientation.html, if we want to apply the formula above to array indices in pixel_array, we first have to apply a column / row flip to the indices.
+    codes = ('L', 'P', 'S')
+    labels = (('A','P'),('R','L'),('I','S'))
     orients = orientations.axcodes2ornt(codes, labels)
     img_reorient = proxy_img.as_reoriented(orients)
     hdr = img_reorient.header
