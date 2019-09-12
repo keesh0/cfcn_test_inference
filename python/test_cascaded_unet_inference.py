@@ -299,7 +299,6 @@ def perform_inference(input_dir_file, results_dir):
         """ Perform Inference """
         # Predict
         net1.blobs['data'].data[0,0,...] = img_p
-        print("fed slice: " + str(slice_no) + " of " + str(num_images))
 
         # take the first dim of 'prob' index 0, second dim of 'prob' index 1, and all of  the third dim
         pred = net1.forward()['prob'][0,1] > 0.5
@@ -318,7 +317,7 @@ def perform_inference(input_dir_file, results_dir):
                 ConstMaskDims = (num_rows, num_cols, num_images)
                 mask_data_array = np.zeros(ConstMaskDims, dtype=MASK_DTYPE)
             mask_data_array[..., slice_no] = mask1
-        print("Processed slice: " + str(slice_no) + " of " + str(num_images))
+        print("Processed slice: " + str(slice_no+1) + " of " + str(num_images))
 
     # Free up memory of step1 network
     del net1  #needed ?
@@ -338,6 +337,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", dest="output_results_dir", help="The output directory to write results to")
     if len(sys.argv) < 4:
         print("python test_cascaded_unet_inference.py -i <input_dcm_dir> -o <output_results_dir>")
+        parser.print_help()
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
