@@ -1,4 +1,5 @@
-# Python 3.x test script to test the following Caffe 1.0.0 model on CT liver images
+# Test script to segment CT liver images.
+# Python 3.6, Caffe 1.0.0, CUDA 10.1, CUDA NN
 # Translated from cascaded_unet_inference.ipynb to test CD'or 3.0 liver segmentation
 # I live under https://github.com/keesh0/cfcn_test_inference
 # ref https://modelzoo.co/model/cascaded-fully-convolutional-networks-for-biomedical
@@ -298,12 +299,10 @@ def perform_inference(input_dir_file, results_dir):
         """ Perform Inference """
         # Predict
         net1.blobs['data'].data[0,0,...] = img_p
-        print("fed slice: " + str(slice_no))
+        print("fed slice: " + str(slice_no) + " of " + str(num_images))
 
         # take the first dim of 'prob' index 0, second dim of 'prob' index 1, and all of  the third dim
         pred = net1.forward()['prob'][0,1] > 0.5
-        print("pred1 mask: "+ str(slice_no))
-        print("pred shape, type:" + str(pred.shape) + "," + str(type(pred)))
 
         #prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
@@ -319,6 +318,7 @@ def perform_inference(input_dir_file, results_dir):
                 ConstMaskDims = (num_rows, num_cols, num_images)
                 mask_data_array = np.zeros(ConstMaskDims, dtype=MASK_DTYPE)
             mask_data_array[..., slice_no] = mask1
+        print("Processed slice: " + str(slice_no) + " of " + str(num_images))
 
     # Free up memory of step1 network
     del net1  #needed ?
@@ -327,6 +327,7 @@ def perform_inference(input_dir_file, results_dir):
         nifti_base = Path(input_dir_file).resolve().stem
         write_nifti_mask(img, axcodes, mask_data_array, results_dir, nifti_base)
 
+    print("Caffe liver inference COMPLETE.")
 
 if __name__ == '__main__':
     '''
@@ -340,4 +341,3 @@ if __name__ == '__main__':
         sys.exit(1)
     inpArgs = parser.parse_args()
     main(inpArgs)
-
