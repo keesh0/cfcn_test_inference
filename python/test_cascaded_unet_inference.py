@@ -1,5 +1,6 @@
 # Test script to segment CT liver images.
-# Python 3.6, Caffe 1.0.0, CUDA 10.1, CUDA NN
+# Python 3.6.8, Caffe 1.0.0, CUDA 10.1 (V10.1.243), numpy 1.17.2, scipy 1.2.0 (last one for imresize)
+# dicom 0.9.9-1 (should upgrade to pydicom), nibabel 2.5.0
 # Translated from cascaded_unet_inference.ipynb to test CD'or 3.0 liver segmentation
 # I live under https://github.com/keesh0/cfcn_test_inference
 # ref https://modelzoo.co/model/cascaded-fully-convolutional-networks-for-biomedical
