@@ -143,7 +143,12 @@ def read_nifti_series(filename):
     # image_data = proxy_img.get_fdata()
 
     hdr = proxy_img.header
-    (num_rows, num_cols, num_images, _) = hdr.get_data_shape()  # not sure of this order
+    image_shape = hdr.get_data_shape()
+    image_dim = len(image_shape)
+    num_images = 1
+    if image_dim >= 3:
+        num_images = image_shape[2]
+
     (m, b) = hdr.get_slope_inter()
     axcodes = nib.aff2axcodes(proxy_img.affine)
     if (axcodes != ('R', 'A', 'S')) and (axcodes != ('L', 'A', 'S')):
