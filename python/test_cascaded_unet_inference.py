@@ -151,8 +151,9 @@ def read_nifti_series(filename):
 
     (m, b) = hdr.get_slope_inter()
     axcodes = nib.aff2axcodes(proxy_img.affine)
-    if (axcodes != ('R', 'A', 'S')) and (axcodes != ('L', 'A', 'S')):
-        print("Input NIfti series is in unsupported orientation.  Please convert to RAS or LAS orientation:" + filename)
+    # TODO-- There does not seem to be a good NIfti method to obtain the input volume's labels?
+    if ( (axcodes != ('R', 'A', 'S')) and (axcodes != ('L', 'A', 'S')) and (axcodes != ('L', 'P', 'S')) ):
+        print("Input NIfti series is in unsupported orientation.  Please convert to RAS, LAS, or LPS orientation:" + filename)
         sys.exit(1)
 
     # specifiy LPS for DICOM
@@ -173,7 +174,8 @@ def write_nifti_mask(img_reorient, axcodes, mask_data, outputdirectory, base_fna
     # TODO--  To support more NIfti orientations add more key/values to nifti_in_codes_labels
     nifti_in_codes_labels =	{
         ('L', 'A', 'S'): (('P','A'),('R','L'),('I','S')),
-        ('R', 'A', 'S'): (('P','A'),('L','R'),('I','S'))
+        ('R', 'A', 'S'): (('P','A'),('L','R'),('I','S')),
+        ('L', 'P', 'S'): (('A','P'),('R','L'),('I','S'))
     }
     filename = outputdirectory + os.path.sep + base_fname + "_mask1" + filepattern
     new_header = header = img_reorient.header.copy()
