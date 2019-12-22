@@ -27,7 +27,7 @@ import natsort
 import glob
 
 #BEG VIZ
-#from skimage.viewer import ImageViewer
+from skimage.viewer import ImageViewer
 import matplotlib.pyplot as plt
 # set display defaults for visualize square
 plt.rcParams['figure.figsize'] = (10, 10)        # large images
@@ -331,7 +331,8 @@ def visualize_weights(net, layer_name, padding=4, filename=''):
     if filename != '':
         plt.savefig(filename, bbox_inches='tight', pad_inches=0)
 
-    plt.show()
+    #plt.show()
+    plt.close()
 
 def vis_square(data, filename=''):
     """Take an array of shape (n, height, width) or (n, height, width, 3)
@@ -398,44 +399,36 @@ def perform_inference(input_dir_file, results_dir):
         pred = net1.forward()['prob'][0,1] > 0.5
 
         #BEG VIZ
+        #  Number x K Channel x Height x Width
         if slice_no == int(num_images/2):
             # "pool_d3c-4a"  # last pooling layer
             # "conv_u1c-d"  # late conv layer
             # "conv_d1a-b"  # early conv
             #viewer = ImageViewer(net1.blobs['data'].data[0,0])
             #viewer.show()
-            # TODO-- We could not get the following to work?
-            #visualize_weights(net1, 'data', filename='data.png')
             feat = net1.blobs['data'].data[0]
-            vis_square(feat, "data_2.png")
+            vis_square(feat, "input_data.png")
 
-            #viewer2 = ImageViewer(net1.blobs['d1b'].data[0,0])
-            #viewer2.show()
-            #visualize_weights(net1, 'd1b', filename='early_conv_d1a-b.png')
             feat = net1.blobs['d1b'].data[0]
-            vis_square(feat, "early_conv_d1a-b_2.png")
+            vis_square(feat, "early_conv_d1a-b.png")
 
-            #viewer3 = ImageViewer(net1.blobs['u1d'].data[0,0])
-            #viewer3.show()
-            #visualize_weights(net1, 'uld', filename='late_conv_u1c-d.png')
             feat = net1.blobs['u1d'].data[0]
-            vis_square(feat, "late_conv_u1c-d_2.png")
+            vis_square(feat, "late_conv_u1c-d.png")
 
-            #viewer4 = ImageViewer(net1.blobs['d4a'].data[0,0])
-            #viewer4.show()
-            #visualize_weights(net1, 'd4a', filename='last_pool_d3c-4a.png')
             feat = net1.blobs['d4a'].data[0]
-            vis_square(feat, "last_pool_d3c-4a_2.png")
+            vis_square(feat, "last_pool_d3c-4a.png")
 
             # the parameters are a list of [weights, biases]
+            # weights2 = net.params['ip2'][0].data  0 for wts, 1 for biases, if any
+            # Some layers, like pool, concat don't have weights
             filters = net1.params['conv_d1a-b'][0].data
-            print(str(net1.params['conv_d1a-b'][0].data.shape))
             # TODO-- We could not get the following to work?  Dim issue?
-            vis_square(filters.transpose(0, 2, 3, 1),"early_conv_d1a-b_wts.png")
+            #print(str(net1.params['conv_d1a-b'][0].data.shape))
+            #vis_square(np.transpose(filters, (0, 2, 3, 1)),"early_conv_d1a-b_wts.png")
+            vis_square(filters,"early_conv_d1a-b_wts.png")
+
             filters = net1.params['conv_u1c-d'][0].data
-            vis_square(filters.transpose(0, 2, 3, 1),"late_conv_u1c-d_wts.png")
-            filters = net1.params['pool_d3c-4a'][0].data
-            vis_square(filters.transpose(0, 2, 3, 1),"last_pool_d3c-4a_wts.png")
+            vis_square(filters,"late_conv_u1c-d_wts.png")
         #END VIZ
 
         #prepare step 1 output mask for saving
