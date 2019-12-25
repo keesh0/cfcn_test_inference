@@ -381,6 +381,21 @@ def perform_inference(input_dir_file, results_dir):
     mask_data_array = None  # NIFTI only
 
     #BEG VIZ
+    # the parameters are a list of [weights, biases]
+    # weights2 = net.params['ip2'][0].data  0 for wts, 1 for biases, if any
+    # Some layers, like pool, concat don't have weights
+    filters = net1.params['conv_d1a-b'][0].data
+    # TODO-- We could not get the following to work?  Dim issue?
+    #print(str(net1.params['conv_d1a-b'][0].data.shape))
+    #vis_square(np.transpose(filters, (0, 2, 3, 1)),"early_conv_d1a-b_wts.png")
+    vis_square(filters,"early_conv_d1a-b_wts.png")
+
+    filters = net1.params['conv_u1c-d'][0].data
+    vis_square(filters,"late_conv_u1c-d_wts.png")
+
+    # conv_u0d-score_New or score
+    # filters = net1.params['conv_u0d-score_New'][0].data
+    # vis_square(filters,"score_wts.png")
     #END VIZ
 
     for slice_no in range(0, num_images):
@@ -415,21 +430,21 @@ def perform_inference(input_dir_file, results_dir):
             feat = net1.blobs['u1d'].data[0]
             vis_square(feat, "late_conv_u1c-d.png")
 
+            #pool_d0c-1a or d1a
+            feat = net1.blobs['d1a'].data[0]
+            vis_square(feat, "early_pool_d0c-1a.png")
+
             feat = net1.blobs['d4a'].data[0]
             vis_square(feat, "last_pool_d3c-4a.png")
 
-            # the parameters are a list of [weights, biases]
-            # weights2 = net.params['ip2'][0].data  0 for wts, 1 for biases, if any
-            # Some layers, like pool, concat don't have weights
-            filters = net1.params['conv_d1a-b'][0].data
-            # TODO-- We could not get the following to work?  Dim issue?
-            #print(str(net1.params['conv_d1a-b'][0].data.shape))
-            #vis_square(np.transpose(filters, (0, 2, 3, 1)),"early_conv_d1a-b_wts.png")
-            vis_square(filters,"early_conv_d1a-b_wts.png")
+            #concat_d0cc_u0a-b or u0b
+            feat = net1.blobs['u0b'].data[0]
+            vis_square(feat, "late_concat_d0cc_u0a-b.png")
 
-            filters = net1.params['conv_u1c-d'][0].data
-            vis_square(filters,"late_conv_u1c-d_wts.png")
+            feat = net1.blobs['score'].data[0]
+            vis_square(feat, "score.png")
         #END VIZ
+
 
         #prepare step 1 output mask for saving
         mask1 = (pred > 0.5)  # [False, True]
