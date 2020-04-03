@@ -13,7 +13,7 @@ typedef unsigned int UINT;
 typedef unsigned short USHORT;
 typedef short SHORT;
 typedef unsigned long ULONG;
-typedef MY_IMG_TYPE = USHORT;  // [0, 65535] in Fiji
+typedef USHORT MY_IMG_TYPE;  // [0, 65535] in Fiji
 
 extern "C" {
 
